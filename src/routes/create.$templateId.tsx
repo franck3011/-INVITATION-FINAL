@@ -702,10 +702,6 @@ function CreatePage() {
       toast.error(`Fichier trop volumineux (max ${Math.round(MAX_BYTES / 1024 / 1024)} Mo)`);
       return null;
     }
-    if (isAudio && file.size > 2.5 * 1024 * 1024) {
-      toast.error("La musique ne doit pas dépasser 2.5 Mo pour le serveur");
-      return null;
-    }
     try {
       const ext = EXT_BY_TYPE[file.type] ?? "bin";
       const rand = crypto.getRandomValues(new Uint8Array(6));
@@ -720,8 +716,11 @@ function CreatePage() {
       return pub.publicUrl;
     } catch (e) {
       console.warn("Échec upload Supabase, compression et sauvegarde locale:", e);
-      // Fallback local compressé pour ne jamais dépasser la limite de 4.5 Mo de Vercel
-      toast.success("Image optimisée et ajoutée");
+      if (isAudio && file.size > 3.5 * 1024 * 1024) {
+        toast.error("Le fichier audio dépasse 3.5 Mo. Utilisez un fichier plus léger ou collez une URL directe de musique.");
+        return null;
+      }
+      toast.success(isAudio ? "Musique ajoutée" : "Image optimisée et ajoutée");
       return await compressImageFile(file);
     }
   }
@@ -1163,14 +1162,37 @@ function CreatePage() {
       case "musicUrl":
         return (
           <Field key={key} cfg={cfg}>
-            <input
-              type="file"
-              accept="audio/*"
-              onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0], "music")}
-              className="text-sm"
-            />
+            <div className="space-y-2">
+              <input
+                type="file"
+                accept="audio/*"
+                onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0], "music")}
+                className="text-sm"
+              />
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground shrink-0">ou lien direct MP3 :</span>
+                <input
+                  type="url"
+                  placeholder="https://.../musique.mp3"
+                  value={musicUrl?.startsWith("data:") ? "" : (musicUrl || "")}
+                  onChange={(e) => setMusicUrl(e.target.value.trim() || null)}
+                  className="flex-1 px-2 py-1 text-xs border rounded bg-background"
+                />
+              </div>
+            </div>
             {uploading === "music" && <p className="text-xs text-muted-foreground mt-1">Envoi…</p>}
-            {musicUrl && <p className="text-xs text-green-700 mt-1">✓ Musique ajoutée</p>}
+            {musicUrl && (
+              <div className="mt-1 flex items-center gap-3">
+                <p className="text-xs text-green-700">✓ Musique configurée</p>
+                <button
+                  type="button"
+                  onClick={() => setMusicUrl(null)}
+                  className="text-xs text-destructive hover:underline"
+                >
+                  Retirer
+                </button>
+              </div>
+            )}
           </Field>
         );
       case "storyText":
@@ -1971,18 +1993,30 @@ function CreatePage() {
                 helper: "Ajoutez une musique qui se lancera à l'ouverture de l'invitation.",
               }}
             >
-              <input
-                type="file"
-                accept="audio/*"
-                onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0], "music")}
-                className="text-sm"
-              />
+              <div className="space-y-2">
+                <input
+                  type="file"
+                  accept="audio/*"
+                  onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0], "music")}
+                  className="text-sm"
+                />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground shrink-0">ou lien direct MP3 :</span>
+                  <input
+                    type="url"
+                    placeholder="https://.../chanson.mp3"
+                    value={musicUrl?.startsWith("data:") ? "" : (musicUrl || "")}
+                    onChange={(e) => setMusicUrl(e.target.value.trim() || null)}
+                    className="flex-1 px-2 py-1 text-xs border rounded bg-background"
+                  />
+                </div>
+              </div>
               {uploading === "music" && (
                 <p className="text-xs text-muted-foreground mt-1">Envoi en cours…</p>
               )}
               {musicUrl && (
                 <div className="mt-2 flex items-center gap-3">
-                  <p className="text-xs font-medium text-green-700">✓ Musique ajoutée</p>
+                  <p className="text-xs font-medium text-green-700">✓ Musique configurée</p>
                   <button
                     type="button"
                     onClick={() => setMusicUrl(null)}
