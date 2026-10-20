@@ -612,6 +612,86 @@ function CreatePage() {
     "audio/x-m4a": "m4a",
   };
 
+  function compressImageFile(file: File, maxWidth = 1200, quality = 0.75): Promise<string> {
+    return new Promise((resolve) => {
+      if (!file.type.startsWith("image/")) {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => resolve("");
+        reader.readAsDataURL(file);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let { width, height } = img;
+          if (width > maxWidth || height > maxWidth) {
+            if (width > height) {
+              height = Math.round((height * maxWidth) / width);
+              width = maxWidth;
+            } else {
+              width = Math.round((width * maxWidth) / height);
+              height = maxWidth;
+            }
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            resolve(e.target?.result as string);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          resolve(canvas.toDataURL("image/jpeg", quality));
+        };
+        img.onerror = () => resolve(e.target?.result as string);
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => resolve("");
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function compressDataUrlIfNeeded(
+    dataUrl: string | null | undefined,
+    maxWidth = 1200,
+    quality = 0.75,
+  ): Promise<string | null> {
+    if (!dataUrl) return Promise.resolve(null);
+    if (!dataUrl.startsWith("data:image/")) return Promise.resolve(dataUrl);
+    if (dataUrl.length < 400_000) return Promise.resolve(dataUrl); // Déjà sous 400 KB
+
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxWidth || height > maxWidth) {
+          if (width > height) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          } else {
+            width = Math.round((width * maxWidth) / height);
+            height = maxWidth;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(dataUrl);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
   async function uploadFileToSupabase(file: File, isAudio = false): Promise<string | null> {
     const allowed = isAudio ? ALLOWED_AUDIO : ALLOWED_IMAGE;
     if (!allowed.includes(file.type)) {
@@ -620,6 +700,10 @@ function CreatePage() {
     }
     if (file.size > MAX_BYTES) {
       toast.error(`Fichier trop volumineux (max ${Math.round(MAX_BYTES / 1024 / 1024)} Mo)`);
+      return null;
+    }
+    if (isAudio && file.size > 2.5 * 1024 * 1024) {
+      toast.error("La musique ne doit pas dépasser 2.5 Mo pour le serveur");
       return null;
     }
     try {
@@ -635,20 +719,10 @@ function CreatePage() {
       toast.success("Fichier ajouté");
       return pub.publicUrl;
     } catch (e) {
-      console.warn("Échec upload Supabase, utilisation du mode local:", e);
-      // Fallback local en Base64 pour ne pas bloquer l'utilisateur si Supabase est hors ligne ou en pause
-      return new Promise<string>((resolve) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          toast.success("Image chargée localement");
-          resolve(reader.result as string);
-        };
-        reader.onerror = () => {
-          toast.error("Impossible de lire l'image");
-          resolve("");
-        };
-        reader.readAsDataURL(file);
-      });
+      console.warn("Échec upload Supabase, compression et sauvegarde locale:", e);
+      // Fallback local compressé pour ne jamais dépasser la limite de 4.5 Mo de Vercel
+      toast.success("Image optimisée et ajoutée");
+      return await compressImageFile(file);
     }
   }
 
@@ -736,6 +810,14 @@ function CreatePage() {
           ? parseInt(maxGuestsPerRsvp)
           : null;
 
+      // Optimiser et compresser toutes les images avant l'envoi pour respecter la limite de 4.5 Mo de Vercel
+      const safeCoverImage = await compressDataUrlIfNeeded(coverImageUrl);
+      const safeVenueImage = await compressDataUrlIfNeeded(venueImageUrl);
+      const safeCoverImage2 = await compressDataUrlIfNeeded(coverImageUrl2);
+      const safeGalleryUrls = await Promise.all(
+        galleryUrls.map((u) => compressDataUrlIfNeeded(u).then((res) => res || u)),
+      );
+
       const res = await create({
         data: {
           templateId: template.id,
@@ -745,14 +827,14 @@ function CreatePage() {
           linkExpiresAt: safeIso(linkExpiresAt),
           location: location.trim(),
           mapLink: mapLink.trim() || null,
-          venueImageUrl: venueImageUrl || null,
+          venueImageUrl: safeVenueImage || null,
           message: [message, bibleVerse].filter(Boolean).join("\n\n").trim() || null,
-          coverImageUrl: coverImageUrl || null,
+          coverImageUrl: safeCoverImage || null,
           musicUrl: musicUrl || null,
           storyText: storyText.trim() || null,
           themeOverrides,
           program: cleanProgram,
-          galleryUrls: coverImageUrl2 ? [coverImageUrl2, ...galleryUrls] : galleryUrls,
+          galleryUrls: safeCoverImage2 ? [safeCoverImage2, ...safeGalleryUrls] : safeGalleryUrls,
           dressCode: dressCode.trim() || null,
           giftInfo: giftInfo.trim() || null,
           accommodationInfo: accommodationInfo.trim() || null,
