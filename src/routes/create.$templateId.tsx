@@ -21,6 +21,7 @@ import { saveMyInvitation } from "@/lib/my-invitations";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { Reveal } from "@/components/ui/reveal";
+import { compressAudioFile, formatAudioSize } from "@/lib/audio-compressor";
 
 export const Route = createFileRoute("/create/$templateId")({
   head: ({ params }) => {
@@ -109,6 +110,8 @@ function CreatePage() {
   const [coverImageUrl, setCoverImageUrl] = useState<string | null>(null);
   const [coverImageUrl2, setCoverImageUrl2] = useState<string | null>(null);
   const [musicUrl, setMusicUrl] = useState<string | null>(null);
+  const [musicProgress, setMusicProgress] = useState<{ percent: number; text: string } | null>(null);
+  const [musicStats, setMusicStats] = useState<{ orig: string; comp: string; saved: number } | null>(null);
   const [storyText, setStoryText] = useState("");
   const [rsvpDeadline, setRsvpDeadline] = useState("");
   const [invitedCount, setInvitedCount] = useState("");
@@ -596,6 +599,9 @@ function CreatePage() {
     "audio/x-wav",
     "audio/mp4",
     "audio/x-m4a",
+    "audio/aac",
+    "audio/webm",
+    "audio/flac",
   ];
   const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
   const EXT_BY_TYPE: Record<string, string> = {
@@ -610,6 +616,9 @@ function CreatePage() {
     "audio/x-wav": "wav",
     "audio/mp4": "m4a",
     "audio/x-m4a": "m4a",
+    "audio/aac": "aac",
+    "audio/webm": "webm",
+    "audio/flac": "flac",
   };
 
   function compressImageFile(file: File, maxWidth = 1200, quality = 0.75): Promise<string> {
@@ -694,7 +703,7 @@ function CreatePage() {
 
   async function uploadFileToSupabase(file: File, isAudio = false): Promise<string | null> {
     const allowed = isAudio ? ALLOWED_AUDIO : ALLOWED_IMAGE;
-    if (!allowed.includes(file.type)) {
+    if (!allowed.includes(file.type) && !file.type.startsWith("audio/")) {
       toast.error(isAudio ? "Format audio non supporté" : "Format image non supporté");
       return null;
     }
@@ -703,24 +712,33 @@ function CreatePage() {
       return null;
     }
     try {
-      const ext = EXT_BY_TYPE[file.type] ?? "bin";
+      const ext = EXT_BY_TYPE[file.type] ?? (isAudio ? "mp3" : "bin");
       const rand = crypto.getRandomValues(new Uint8Array(6));
       const randStr = Array.from(rand, (b) => b.toString(16).padStart(2, "0")).join("");
       const path = `${Date.now()}-${randStr}.${ext}`;
       const { error } = await supabase.storage
         .from("event-media")
-        .upload(path, file, { contentType: file.type, upsert: false });
+        .upload(path, file, { contentType: file.type || "audio/mpeg", upsert: false });
       if (error) throw error;
       const { data: pub } = supabase.storage.from("event-media").getPublicUrl(path);
-      toast.success("Fichier ajouté");
+      toast.success(isAudio ? "Musique ajoutée avec succès" : "Fichier ajouté");
       return pub.publicUrl;
     } catch (e) {
       console.warn("Échec upload Supabase, compression et sauvegarde locale:", e);
-      if (isAudio && file.size > 3.5 * 1024 * 1024) {
-        toast.error("Le fichier audio dépasse 3.5 Mo. Utilisez un fichier plus léger ou collez une URL directe de musique.");
-        return null;
+      if (isAudio) {
+        if (file.size > 3.5 * 1024 * 1024) {
+          toast.error("Le fichier audio dépasse 3.5 Mo. Utilisez un fichier plus léger ou collez une URL directe.");
+          return null;
+        }
+        toast.success("Musique optimisée et ajoutée");
+        return await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => resolve("");
+          reader.readAsDataURL(file);
+        });
       }
-      toast.success(isAudio ? "Musique ajoutée" : "Image optimisée et ajoutée");
+      toast.success("Image optimisée et ajoutée");
       return await compressImageFile(file);
     }
   }
@@ -730,7 +748,39 @@ function CreatePage() {
     kind: "cover" | "cover2" | "music" | "gallery" | "venue",
   ) {
     setUploading(kind);
-    const url = await uploadFileToSupabase(file, kind === "music");
+    let targetFile = file;
+
+    if (kind === "music") {
+      setMusicProgress({ percent: 10, text: "Optimisation de la musique…" });
+      try {
+        const res = await compressAudioFile(file, {
+          onProgress: (percent, text) => {
+            setMusicProgress({ percent, text });
+          },
+        });
+        targetFile = res.file;
+        setMusicStats({
+          orig: formatAudioSize(res.originalSize),
+          comp: formatAudioSize(res.compressedSize),
+          saved: res.savedPercent,
+        });
+        toast.success(
+          `Musique compressée : ${formatAudioSize(res.originalSize)} ➔ ${formatAudioSize(res.compressedSize)} (-${res.savedPercent}%)`,
+        );
+      } catch (err) {
+        console.warn("Compression audio ignorée, utilisation directe:", err);
+        if (file.size > 3.5 * 1024 * 1024) {
+          toast.error("Le fichier audio dépasse 3.5 Mo et n'a pas pu être compressé. Utilisez un fichier MP3 plus léger ou collez une URL directe.");
+          setUploading(null);
+          setMusicProgress(null);
+          return;
+        }
+      } finally {
+        setMusicProgress(null);
+      }
+    }
+
+    const url = await uploadFileToSupabase(targetFile, kind === "music");
     setUploading(null);
     if (!url) return;
     if (kind === "cover") setCoverImageUrl(url);
@@ -1162,37 +1212,79 @@ function CreatePage() {
       case "musicUrl":
         return (
           <Field key={key} cfg={cfg}>
-            <div className="space-y-2">
-              <input
-                type="file"
-                accept="audio/*"
-                onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0], "music")}
-                className="text-sm"
-              />
+            <div className="space-y-3">
+              <div className="flex flex-col gap-1.5">
+                <input
+                  type="file"
+                  accept="audio/*"
+                  onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0], "music")}
+                  className="text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+                  disabled={uploading === "music"}
+                />
+                <span className="text-[11px] text-muted-foreground">
+                  🗜️ Compresseur MP3 automatique intégré (tous formats acceptés : MP3, WAV, AAC, M4A, OGG)
+                </span>
+              </div>
+
+              {musicProgress && (
+                <div className="space-y-1.5 bg-primary/5 p-2.5 rounded border border-primary/20">
+                  <div className="flex items-center justify-between text-xs font-medium text-primary">
+                    <span>{musicProgress.text}</span>
+                    <span>{musicProgress.percent}%</span>
+                  </div>
+                  <div className="w-full bg-primary/10 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className="bg-primary h-full transition-all duration-150"
+                      style={{ width: `${musicProgress.percent}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground shrink-0">ou lien direct MP3 :</span>
                 <input
                   type="url"
                   placeholder="https://.../musique.mp3"
                   value={musicUrl?.startsWith("data:") ? "" : (musicUrl || "")}
-                  onChange={(e) => setMusicUrl(e.target.value.trim() || null)}
+                  onChange={(e) => {
+                    setMusicUrl(e.target.value.trim() || null);
+                    setMusicStats(null);
+                  }}
                   className="flex-1 px-2 py-1 text-xs border rounded bg-background"
                 />
               </div>
+
+              {uploading === "music" && !musicProgress && (
+                <p className="text-xs text-muted-foreground">Envoi en cours…</p>
+              )}
+
+              {musicUrl && (
+                <div className="p-2.5 bg-green-50/80 border border-green-200 rounded space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-semibold text-green-800">✓ Musique prête</span>
+                      {musicStats && (
+                        <span className="text-[10px] bg-green-200/80 text-green-800 px-2 py-0.5 rounded-full font-medium">
+                          {musicStats.orig} ➔ {musicStats.comp} (-{musicStats.saved}%)
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMusicUrl(null);
+                        setMusicStats(null);
+                      }}
+                      className="text-xs text-destructive hover:underline font-medium"
+                    >
+                      Retirer
+                    </button>
+                  </div>
+                  <audio controls src={musicUrl} className="w-full h-8" preload="metadata" />
+                </div>
+              )}
             </div>
-            {uploading === "music" && <p className="text-xs text-muted-foreground mt-1">Envoi…</p>}
-            {musicUrl && (
-              <div className="mt-1 flex items-center gap-3">
-                <p className="text-xs text-green-700">✓ Musique configurée</p>
-                <button
-                  type="button"
-                  onClick={() => setMusicUrl(null)}
-                  className="text-xs text-destructive hover:underline"
-                >
-                  Retirer
-                </button>
-              </div>
-            )}
           </Field>
         );
       case "storyText":
@@ -1989,43 +2081,83 @@ function CreatePage() {
 
             <Field
               cfg={{
-                label: "🎶 Musique de fond (MP3)",
+                label: "🎶 Musique de fond",
                 helper: "Ajoutez une musique qui se lancera à l'ouverture de l'invitation.",
               }}
             >
-              <div className="space-y-2">
-                <input
-                  type="file"
-                  accept="audio/*"
-                  onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0], "music")}
-                  className="text-sm"
-                />
+              <div className="space-y-3">
+                <div className="flex flex-col gap-1.5">
+                  <input
+                    type="file"
+                    accept="audio/*"
+                    onChange={(e) => e.target.files?.[0] && handleUpload(e.target.files[0], "music")}
+                    className="text-xs file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+                    disabled={uploading === "music"}
+                  />
+                  <span className="text-[11px] text-muted-foreground">
+                    🗜️ Compresseur MP3 automatique intégré (tous formats acceptés : MP3, WAV, AAC, M4A, OGG)
+                  </span>
+                </div>
+
+                {musicProgress && (
+                  <div className="space-y-1.5 bg-primary/5 p-2.5 rounded border border-primary/20">
+                    <div className="flex items-center justify-between text-xs font-medium text-primary">
+                      <span>{musicProgress.text}</span>
+                      <span>{musicProgress.percent}%</span>
+                    </div>
+                    <div className="w-full bg-primary/10 h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className="bg-primary h-full transition-all duration-150"
+                        style={{ width: `${musicProgress.percent}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground shrink-0">ou lien direct MP3 :</span>
                   <input
                     type="url"
                     placeholder="https://.../chanson.mp3"
                     value={musicUrl?.startsWith("data:") ? "" : (musicUrl || "")}
-                    onChange={(e) => setMusicUrl(e.target.value.trim() || null)}
+                    onChange={(e) => {
+                      setMusicUrl(e.target.value.trim() || null);
+                      setMusicStats(null);
+                    }}
                     className="flex-1 px-2 py-1 text-xs border rounded bg-background"
                   />
                 </div>
+
+                {uploading === "music" && !musicProgress && (
+                  <p className="text-xs text-muted-foreground">Envoi en cours…</p>
+                )}
+
+                {musicUrl && (
+                  <div className="p-2.5 bg-green-50/80 border border-green-200 rounded space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-green-800">✓ Musique prête</span>
+                        {musicStats && (
+                          <span className="text-[10px] bg-green-200/80 text-green-800 px-2 py-0.5 rounded-full font-medium">
+                            {musicStats.orig} ➔ {musicStats.comp} (-{musicStats.saved}%)
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMusicUrl(null);
+                          setMusicStats(null);
+                        }}
+                        className="text-xs text-destructive hover:underline font-medium"
+                      >
+                        Retirer
+                      </button>
+                    </div>
+                    <audio controls src={musicUrl} className="w-full h-8" preload="metadata" />
+                  </div>
+                )}
               </div>
-              {uploading === "music" && (
-                <p className="text-xs text-muted-foreground mt-1">Envoi en cours…</p>
-              )}
-              {musicUrl && (
-                <div className="mt-2 flex items-center gap-3">
-                  <p className="text-xs font-medium text-green-700">✓ Musique configurée</p>
-                  <button
-                    type="button"
-                    onClick={() => setMusicUrl(null)}
-                    className="text-xs text-destructive hover:underline"
-                  >
-                    Retirer
-                  </button>
-                </div>
-              )}
             </Field>
 
             <Field
