@@ -781,6 +781,7 @@ function PublicInvite() {
   return (
     <ScrollAnimationContext.Provider value={themeOverrides?.scrollAnimation || "fade-blur"}>
       <div
+        id="public-invitation-root"
         className="min-h-screen"
         style={{
           ...pageThemeStyle,
@@ -791,6 +792,99 @@ function PublicInvite() {
               : {}),
         }}
       >
+        <style>{`
+          ${themeOverrides?.bg ? `#public-invitation-root { background-color: ${themeOverrides.bg} !important; }` : ''}
+          ${(themeOverrides?.textColor || themeOverrides?.text) ? `
+            #public-invitation-root p:not([data-inv-ceremony]):not([data-inv-date]):not([data-inv-subtitle]):not([data-inv-title]):not([data-inv-message]):not(.inv-date):not(.event-date),
+            #public-invitation-root span:not([data-inv-ceremony]):not([data-inv-title]):not([data-inv-date]):not([data-inv-subtitle]):not([class*="badge"]) {
+              color: ${themeOverrides.textColor || themeOverrides.text} !important;
+            }
+          ` : ''}
+          ${themeOverrides?.fontSizeBody ? `
+            #public-invitation-root p:not([data-inv-ceremony]):not([data-inv-subtitle]):not([data-inv-date]):not([data-inv-message]):not([data-inv-title]):not(.inv-date):not(.event-date) {
+              font-size: ${themeOverrides.fontSizeBody}px !important;
+            }
+          ` : ''}
+          ${(themeOverrides?.extraSectionColor || themeOverrides?.accent) ? `
+            #public-invitation-root section h2,
+            #public-invitation-root section h2 span,
+            #public-invitation-root section h2 * {
+              color: ${themeOverrides.extraSectionColor || themeOverrides.accent} !important;
+            }
+          ` : ''}
+          ${(themeOverrides?.fontSizeExtraSection || themeOverrides?.fontSizeSubtitle) ? `
+            #public-invitation-root section h2,
+            #public-invitation-root section h2 span,
+            #public-invitation-root section h2 * {
+              font-size: ${themeOverrides.fontSizeExtraSection || themeOverrides.fontSizeSubtitle}px !important;
+            }
+          ` : ''}
+          ${themeOverrides?.titleColor ? `
+            #public-invitation-root h1,
+            #public-invitation-root h2[data-inv-title],
+            #public-invitation-root .inv-title,
+            #generative-preview h1,
+            #generative-preview h2 {
+              color: ${themeOverrides.titleColor} !important;
+            }
+          ` : ''}
+          ${themeOverrides?.fontSizeTitle ? `
+            #public-invitation-root h1,
+            #public-invitation-root h2[data-inv-title],
+            #public-invitation-root .inv-title,
+            #public-invitation-root [class*="text-[clamp(1"],
+            #public-invitation-root [class*="text-[clamp(2"],
+            #public-invitation-root [class*="text-[clamp(3"],
+            #generative-preview h1,
+            #generative-preview h2,
+            #generative-preview [class*="text-[clamp(1"],
+            #generative-preview [class*="text-[clamp(2"],
+            #generative-preview [class*="text-[clamp(3"] {
+              font-size: ${themeOverrides.fontSizeTitle}px !important;
+              line-height: 1.15 !important;
+            }
+          ` : ''}
+          ${(themeOverrides?.ceremonyColor || themeOverrides?.accent) ? `
+            #public-invitation-root [data-inv-ceremony], #public-invitation-root .inv-ceremony {
+              color: ${themeOverrides.ceremonyColor || themeOverrides.accent} !important;
+            }
+          ` : ''}
+          ${(themeOverrides?.fontSizeLabel || themeOverrides?.fontSizeExtraSection) ? `
+            #public-invitation-root [data-inv-ceremony], #public-invitation-root .inv-ceremony {
+              font-size: ${themeOverrides.fontSizeLabel || themeOverrides.fontSizeExtraSection}px !important;
+            }
+          ` : ''}
+          ${themeOverrides?.subtitleColor ? `
+            #public-invitation-root [data-inv-subtitle], #public-invitation-root .inv-subtitle, #public-invitation-root .host-name {
+              color: ${themeOverrides.subtitleColor} !important;
+            }
+          ` : ''}
+          ${themeOverrides?.fontSizeSubtitle ? `
+            #public-invitation-root [data-inv-subtitle], #public-invitation-root .inv-subtitle {
+              font-size: ${themeOverrides.fontSizeSubtitle}px !important;
+            }
+          ` : ''}
+          ${themeOverrides?.dateColor ? `
+            #public-invitation-root [data-inv-date], #public-invitation-root .inv-date, #public-invitation-root .event-date, #public-invitation-root [class*="Calendar"] ~ *, #public-invitation-root [class*="Clock"] ~ *, #public-invitation-root svg[class*="lucide-calendar"], #public-invitation-root svg[class*="lucide-clock"] {
+              color: ${themeOverrides.dateColor} !important;
+            }
+          ` : ''}
+          ${themeOverrides?.fontSizeDate ? `
+            #public-invitation-root [data-inv-date], #public-invitation-root .inv-date, #public-invitation-root .event-date, #public-invitation-root [class*="Calendar"] ~ *, #public-invitation-root [class*="Clock"] ~ * {
+              font-size: ${themeOverrides.fontSizeDate}px !important;
+            }
+          ` : ''}
+          ${themeOverrides?.messageColor ? `
+            #public-invitation-root [data-inv-message], #public-invitation-root .inv-message, #public-invitation-root blockquote {
+              color: ${themeOverrides.messageColor} !important;
+            }
+          ` : ''}
+          ${themeOverrides?.fontSizeMessage ? `
+            #public-invitation-root [data-inv-message], #public-invitation-root .inv-message, #public-invitation-root blockquote {
+              font-size: ${themeOverrides.fontSizeMessage}px !important;
+            }
+          ` : ''}
+        `}</style>
         <Toaster richColors position="top-center" />
 
         {/* Back to top button */}

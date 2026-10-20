@@ -558,28 +558,100 @@ function parseDateParts(iso?: string | null): {
 
 export function generateThemeCSS(prefix: string, ov?: ThemeOverrides | null) {
   const overridesCSS = ov ? `
-    ${ov.fontSizeTitle ? `${prefix} h1, ${prefix} h2, ${prefix} [data-inv-title], ${prefix} .inv-title { font-size: ${ov.fontSizeTitle}px !important; line-height: 1.15 !important; }` : ''}
-    ${ov.titleColor ? `${prefix} h1, ${prefix} h2, ${prefix} [data-inv-title], ${prefix} .inv-title { color: ${ov.titleColor} !important; }` : ''}
-    ${ov.fontWeightTitle ? `${prefix} h1, ${prefix} h2, ${prefix} [data-inv-title], ${prefix} .inv-title { font-weight: ${ov.fontWeightTitle} !important; }` : ''}
-    ${ov.titleBold ? `${prefix} h1, ${prefix} h2, ${prefix} [data-inv-title], ${prefix} .inv-title { font-weight: 700 !important; }` : ''}
+    ${ov.fontSizeTitle ? `
+      ${prefix} h1, ${prefix} h2, ${prefix} [data-inv-title], ${prefix} .inv-title, ${prefix} [class*="text-[clamp(1"], ${prefix} [class*="text-[clamp(2"], ${prefix} [class*="text-[clamp(3"] {
+        font-size: ${ov.fontSizeTitle}px !important;
+        line-height: 1.15 !important;
+      }
+    ` : ''}
+    ${ov.titleColor ? `
+      ${prefix} h1, ${prefix} h2, ${prefix} [data-inv-title], ${prefix} .inv-title {
+        color: ${ov.titleColor} !important;
+      }
+    ` : ''}
+    ${ov.fontWeightTitle ? `
+      ${prefix} h1, ${prefix} h2, ${prefix} [data-inv-title], ${prefix} .inv-title {
+        font-weight: ${ov.fontWeightTitle} !important;
+      }
+    ` : ''}
+    ${ov.titleBold ? `
+      ${prefix} h1, ${prefix} h2, ${prefix} [data-inv-title], ${prefix} .inv-title {
+        font-weight: 700 !important;
+      }
+    ` : ''}
     
-    ${(ov.fontSizeLabel || ov.fontSizeExtraSection) ? `${prefix} [data-inv-ceremony], ${prefix} .inv-ceremony { font-size: ${ov.fontSizeLabel || ov.fontSizeExtraSection}px !important; }` : ''}
-    ${(ov.ceremonyColor || ov.accent) ? `${prefix} [data-inv-ceremony], ${prefix} .inv-ceremony { color: ${ov.ceremonyColor || ov.accent} !important; }` : ''}
+    ${(ov.fontSizeLabel || ov.fontSizeExtraSection) ? `
+      ${prefix} [data-inv-ceremony], ${prefix} .inv-ceremony {
+        font-size: ${ov.fontSizeLabel || ov.fontSizeExtraSection}px !important;
+      }
+    ` : ''}
+    ${(ov.ceremonyColor || ov.accent) ? `
+      ${prefix} [data-inv-ceremony], ${prefix} .inv-ceremony {
+        color: ${ov.ceremonyColor || ov.accent} !important;
+      }
+    ` : ''}
     
-    ${ov.fontSizeSubtitle ? `${prefix} h3, ${prefix} [data-inv-subtitle], ${prefix} .inv-subtitle { font-size: ${ov.fontSizeSubtitle}px !important; line-height: 1.4 !important; }` : ''}
-    ${ov.subtitleColor ? `${prefix} h3, ${prefix} [data-inv-subtitle], ${prefix} .inv-subtitle { color: ${ov.subtitleColor} !important; }` : ''}
-    ${ov.fontWeightSubtitle ? `${prefix} h3, ${prefix} [data-inv-subtitle], ${prefix} .inv-subtitle { font-weight: ${ov.fontWeightSubtitle} !important; }` : ''}
+    ${ov.fontSizeSubtitle ? `
+      ${prefix} h3, ${prefix} [data-inv-subtitle], ${prefix} .inv-subtitle {
+        font-size: ${ov.fontSizeSubtitle}px !important;
+        line-height: 1.4 !important;
+      }
+    ` : ''}
+    ${ov.subtitleColor ? `
+      ${prefix} h3, ${prefix} [data-inv-subtitle], ${prefix} .inv-subtitle, ${prefix} .host-name {
+        color: ${ov.subtitleColor} !important;
+      }
+    ` : ''}
+    ${ov.fontWeightSubtitle ? `
+      ${prefix} h3, ${prefix} [data-inv-subtitle], ${prefix} .inv-subtitle {
+        font-weight: ${ov.fontWeightSubtitle} !important;
+      }
+    ` : ''}
     
-    ${ov.fontSizeDate ? `${prefix} [data-inv-date], ${prefix} .inv-date { font-size: ${ov.fontSizeDate}px !important; }` : ''}
-    ${ov.dateColor ? `${prefix} [data-inv-date], ${prefix} .inv-date { color: ${ov.dateColor} !important; }` : ''}
-    ${ov.fontWeightDate ? `${prefix} [data-inv-date], ${prefix} .inv-date { font-weight: ${ov.fontWeightDate} !important; }` : ''}
-    ${ov.dateBold ? `${prefix} [data-inv-date], ${prefix} .inv-date { font-weight: 700 !important; }` : ''}
+    ${ov.fontSizeDate ? `
+      ${prefix} [data-inv-date], ${prefix} .inv-date, ${prefix} .event-date, ${prefix} [class*="Calendar"] ~ *, ${prefix} [class*="Clock"] ~ * {
+        font-size: ${ov.fontSizeDate}px !important;
+      }
+    ` : ''}
+    ${ov.dateColor ? `
+      ${prefix} [data-inv-date], ${prefix} .inv-date, ${prefix} .event-date, ${prefix} [class*="Calendar"] ~ *, ${prefix} [class*="Clock"] ~ *, ${prefix} svg[class*="lucide-calendar"], ${prefix} svg[class*="lucide-clock"] {
+        color: ${ov.dateColor} !important;
+      }
+    ` : ''}
+    ${ov.fontWeightDate ? `
+      ${prefix} [data-inv-date], ${prefix} .inv-date, ${prefix} .event-date, ${prefix} [class*="Calendar"] ~ *, ${prefix} [class*="Clock"] ~ * {
+        font-weight: ${ov.fontWeightDate} !important;
+      }
+    ` : ''}
+    ${ov.dateBold ? `
+      ${prefix} [data-inv-date], ${prefix} .inv-date, ${prefix} .event-date, ${prefix} [class*="Calendar"] ~ *, ${prefix} [class*="Clock"] ~ * {
+        font-weight: 700 !important;
+      }
+    ` : ''}
     
-    ${ov.fontSizeMessage ? `${prefix} [data-inv-message], ${prefix} .inv-message { font-size: ${ov.fontSizeMessage}px !important; }` : ''}
-    ${ov.messageColor ? `${prefix} [data-inv-message], ${prefix} .inv-message { color: ${ov.messageColor} !important; }` : ''}
+    ${ov.fontSizeMessage ? `
+      ${prefix} [data-inv-message], ${prefix} .inv-message, ${prefix} blockquote {
+        font-size: ${ov.fontSizeMessage}px !important;
+      }
+    ` : ''}
+    ${ov.messageColor ? `
+      ${prefix} [data-inv-message], ${prefix} .inv-message, ${prefix} blockquote {
+        color: ${ov.messageColor} !important;
+      }
+    ` : ''}
     
-    ${ov.fontSizeBody ? `${prefix} p:not([data-inv-ceremony]):not([data-inv-subtitle]):not([data-inv-date]):not([data-inv-message]):not([data-inv-title]) { font-size: ${ov.fontSizeBody}px !important; }` : ''}
-    ${(ov.textColor || ov.text) ? `${prefix} p:not([data-inv-ceremony]):not([data-inv-date]):not([data-inv-subtitle]):not([data-inv-title]):not([data-inv-message]), ${prefix} span:not([data-inv-ceremony]):not([data-inv-title]):not([data-inv-date]):not([data-inv-subtitle]) { color: ${ov.textColor || ov.text} !important; }` : ''}
+    ${ov.fontSizeBody ? `
+      ${prefix} p:not([data-inv-ceremony]):not([data-inv-subtitle]):not([data-inv-date]):not([data-inv-message]):not([data-inv-title]):not(.inv-date):not(.event-date),
+      ${prefix} span.inv-body {
+        font-size: ${ov.fontSizeBody}px !important;
+      }
+    ` : ''}
+    ${(ov.textColor || ov.text) ? `
+      ${prefix} p:not([data-inv-ceremony]):not([data-inv-date]):not([data-inv-subtitle]):not([data-inv-title]):not([data-inv-message]):not(.inv-date):not(.event-date),
+      ${prefix} span:not([data-inv-ceremony]):not([data-inv-title]):not([data-inv-date]):not([data-inv-subtitle]):not([class*="badge"]) {
+        color: ${ov.textColor || ov.text} !important;
+      }
+    ` : ''}
     
     ${ov.bg ? `${prefix} > div:first-child, ${prefix} [class*="min-h-"] { background-color: ${ov.bg} !important; }` : ''}
     ${ov.allBold ? `${prefix} * { font-weight: 700 !important; }` : ''}

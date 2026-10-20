@@ -62,15 +62,26 @@ export function Design1({
       <div className="absolute bottom-0 left-0 right-0 px-6 pb-6">
         <div className="w-8 h-0.5 mb-3" style={{ background: p.accent }} />
         <h2
+          data-inv-title
           className={`${getTitleFontClass(template, themeOverrides)} text-[clamp(2.5rem,8vw,3.5rem)] text-white leading-tight`}
-          style={{ textShadow: "0 2px 10px rgba(0,0,0,0.6)" }}
+          style={{
+            color: p.titleColor || "white",
+            fontSize: themeOverrides?.fontSizeTitle ? `${themeOverrides.fontSizeTitle}px` : undefined,
+            fontWeight: themeOverrides?.fontWeightTitle || (themeOverrides?.titleBold ? 700 : undefined),
+            textShadow: "0 2px 10px rgba(0,0,0,0.6)",
+          }}
         >
           {template.name}
         </h2>
         {hostName && (
           <p
+            data-inv-subtitle
             className="text-white/80 text-[11px] mt-1 italic"
-            style={{ textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}
+            style={{
+              color: p.subtitleColor || "rgba(255,255,255,0.8)",
+              fontSize: themeOverrides?.fontSizeSubtitle ? `${themeOverrides.fontSizeSubtitle}px` : undefined,
+              textShadow: "0 1px 4px rgba(0,0,0,0.5)",
+            }}
           >
             {hostName}
           </p>

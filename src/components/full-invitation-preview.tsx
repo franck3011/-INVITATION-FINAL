@@ -109,20 +109,43 @@ export function FullInvitationPreview({
           }
         ` : ''}
 
-        ${themeOverrides?.titleColor ? `#full-invitation-root h1, #full-invitation-root h2[data-inv-title], #generative-preview h1, #generative-preview h2 { color: ${themeOverrides.titleColor} !important; }` : ''}
-        ${themeOverrides?.fontSizeTitle ? `#full-invitation-root h1, #full-invitation-root h2[data-inv-title], #generative-preview h1, #generative-preview h2 { font-size: ${themeOverrides.fontSizeTitle}px !important; }` : ''}
+        ${themeOverrides?.titleColor ? `
+          #full-invitation-root h1,
+          #full-invitation-root h2[data-inv-title],
+          #full-invitation-root .inv-title,
+          #generative-preview h1,
+          #generative-preview h2 {
+            color: ${themeOverrides.titleColor} !important;
+          }
+        ` : ''}
+        ${themeOverrides?.fontSizeTitle ? `
+          #full-invitation-root h1,
+          #full-invitation-root h2[data-inv-title],
+          #full-invitation-root .inv-title,
+          #full-invitation-root [class*="text-[clamp(1"],
+          #full-invitation-root [class*="text-[clamp(2"],
+          #full-invitation-root [class*="text-[clamp(3"],
+          #generative-preview h1,
+          #generative-preview h2,
+          #generative-preview [class*="text-[clamp(1"],
+          #generative-preview [class*="text-[clamp(2"],
+          #generative-preview [class*="text-[clamp(3"] {
+            font-size: ${themeOverrides.fontSizeTitle}px !important;
+            line-height: 1.15 !important;
+          }
+        ` : ''}
         
-        ${(themeOverrides?.ceremonyColor || themeOverrides?.accent) ? `#full-invitation-root [data-inv-ceremony] { color: ${themeOverrides.ceremonyColor || themeOverrides.accent} !important; }` : ''}
-        ${(themeOverrides?.fontSizeLabel || themeOverrides?.fontSizeExtraSection) ? `#full-invitation-root [data-inv-ceremony] { font-size: ${themeOverrides.fontSizeLabel || themeOverrides.fontSizeExtraSection}px !important; }` : ''}
+        ${(themeOverrides?.ceremonyColor || themeOverrides?.accent) ? `#full-invitation-root [data-inv-ceremony], #full-invitation-root .inv-ceremony { color: ${themeOverrides.ceremonyColor || themeOverrides.accent} !important; }` : ''}
+        ${(themeOverrides?.fontSizeLabel || themeOverrides?.fontSizeExtraSection) ? `#full-invitation-root [data-inv-ceremony], #full-invitation-root .inv-ceremony { font-size: ${themeOverrides.fontSizeLabel || themeOverrides.fontSizeExtraSection}px !important; }` : ''}
         
-        ${themeOverrides?.subtitleColor ? `#full-invitation-root [data-inv-subtitle] { color: ${themeOverrides.subtitleColor} !important; }` : ''}
-        ${themeOverrides?.fontSizeSubtitle ? `#full-invitation-root [data-inv-subtitle] { font-size: ${themeOverrides.fontSizeSubtitle}px !important; }` : ''}
+        ${themeOverrides?.subtitleColor ? `#full-invitation-root [data-inv-subtitle], #full-invitation-root .inv-subtitle, #full-invitation-root .host-name { color: ${themeOverrides.subtitleColor} !important; }` : ''}
+        ${themeOverrides?.fontSizeSubtitle ? `#full-invitation-root [data-inv-subtitle], #full-invitation-root .inv-subtitle { font-size: ${themeOverrides.fontSizeSubtitle}px !important; }` : ''}
 
-        ${themeOverrides?.dateColor ? `#full-invitation-root [data-inv-date] { color: ${themeOverrides.dateColor} !important; }` : ''}
-        ${themeOverrides?.fontSizeDate ? `#full-invitation-root [data-inv-date] { font-size: ${themeOverrides.fontSizeDate}px !important; }` : ''}
+        ${themeOverrides?.dateColor ? `#full-invitation-root [data-inv-date], #full-invitation-root .inv-date, #full-invitation-root .event-date, #full-invitation-root [class*="Calendar"] ~ *, #full-invitation-root [class*="Clock"] ~ *, #full-invitation-root svg[class*="lucide-calendar"], #full-invitation-root svg[class*="lucide-clock"] { color: ${themeOverrides.dateColor} !important; }` : ''}
+        ${themeOverrides?.fontSizeDate ? `#full-invitation-root [data-inv-date], #full-invitation-root .inv-date, #full-invitation-root .event-date, #full-invitation-root [class*="Calendar"] ~ *, #full-invitation-root [class*="Clock"] ~ * { font-size: ${themeOverrides.fontSizeDate}px !important; }` : ''}
 
-        ${themeOverrides?.messageColor ? `#full-invitation-root [data-inv-message] { color: ${themeOverrides.messageColor} !important; }` : ''}
-        ${themeOverrides?.fontSizeMessage ? `#full-invitation-root [data-inv-message] { font-size: ${themeOverrides.fontSizeMessage}px !important; }` : ''}
+        ${themeOverrides?.messageColor ? `#full-invitation-root [data-inv-message], #full-invitation-root .inv-message, #full-invitation-root blockquote { color: ${themeOverrides.messageColor} !important; }` : ''}
+        ${themeOverrides?.fontSizeMessage ? `#full-invitation-root [data-inv-message], #full-invitation-root .inv-message, #full-invitation-root blockquote { font-size: ${themeOverrides.fontSizeMessage}px !important; }` : ''}
 
         ${themeOverrides?.allBold ? `#full-invitation-root * { font-weight: 700 !important; }` : ''}
         ${themeOverrides?.fontWeightAll ? `#full-invitation-root * { font-weight: ${themeOverrides.fontWeightAll} !important; }` : ''}
