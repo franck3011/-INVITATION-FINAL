@@ -191,8 +191,19 @@ function BuilderDemo() {
       setMusicUrl(pub.publicUrl);
       toast.success("Musique ajoutée avec succès");
     } catch (e) {
-      toast.error(e instanceof Error ? `Échec de l'envoi: ${e.message}` : "Échec de l'envoi");
-      console.error(e);
+      console.warn("Échec upload Supabase, fallback:", e);
+      if (file.size > 3.5 * 1024 * 1024) {
+        toast.error("Le fichier dépasse 3.5 Mo pour le stockage direct. Utilisez un fichier plus léger ou collez une URL MP3.");
+        setUploadingMedia(false);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        setMusicUrl(reader.result as string);
+        toast.success("Musique ajoutée");
+      };
+      reader.onerror = () => toast.error("Échec de la lecture du fichier audio");
+      reader.readAsDataURL(file);
     } finally {
       setUploadingMedia(false);
     }
@@ -524,6 +535,16 @@ function BuilderDemo() {
                       onChange={(e) => e.target.files?.[0] && handleAudioUpload(e.target.files[0])}
                       className="text-xs w-full"
                     />
+                    <div className="flex items-center gap-2 pt-1">
+                      <span className="text-[10px] text-gray-500 shrink-0">ou lien direct MP3 :</span>
+                      <input
+                        type="url"
+                        placeholder="https://.../musique.mp3"
+                        value={musicUrl?.startsWith("data:") ? "" : (musicUrl || "")}
+                        onChange={(e) => setMusicUrl(e.target.value.trim() || null)}
+                        className="flex-1 px-2 py-1 text-xs border rounded bg-white"
+                      />
+                    </div>
                     {uploadingMedia && (
                       <p className="text-[10px] text-gray-500 mt-1">Envoi en cours…</p>
                     )}
