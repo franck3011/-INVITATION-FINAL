@@ -1,0 +1,7 @@
+ALTER TABLE public.events
+  ADD COLUMN IF NOT EXISTS story_text TEXT,
+  ADD COLUMN IF NOT EXISTS program JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS gallery_urls TEXT[] NOT NULL DEFAULT '{}'::text[],
+  ADD COLUMN IF NOT EXISTS dress_code TEXT,
+  ADD COLUMN IF NOT EXISTS gift_info TEXT,
+  ADD COLUMN IF NOT EXISTS accommodation_info TEXT;
