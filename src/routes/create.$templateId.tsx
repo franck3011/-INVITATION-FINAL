@@ -21,7 +21,7 @@ import { saveMyInvitation } from "@/lib/my-invitations";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { Reveal } from "@/components/ui/reveal";
-import { compressAudioFile, formatAudioSize } from "@/lib/audio-compressor";
+import { compressAudioFile, formatAudioSize, normalizeAudioUrl } from "@/lib/audio-compressor";
 
 export const Route = createFileRoute("/create/$templateId")({
   head: ({ params }) => {
@@ -1248,7 +1248,8 @@ function CreatePage() {
                   placeholder="https://.../musique.mp3"
                   value={musicUrl?.startsWith("data:") ? "" : (musicUrl || "")}
                   onChange={(e) => {
-                    setMusicUrl(e.target.value.trim() || null);
+                    const raw = e.target.value.trim();
+                    setMusicUrl(raw ? normalizeAudioUrl(raw) : null);
                     setMusicStats(null);
                   }}
                   className="flex-1 px-2 py-1 text-xs border rounded bg-background"
@@ -2121,7 +2122,8 @@ function CreatePage() {
                     placeholder="https://.../chanson.mp3"
                     value={musicUrl?.startsWith("data:") ? "" : (musicUrl || "")}
                     onChange={(e) => {
-                      setMusicUrl(e.target.value.trim() || null);
+                      const raw = e.target.value.trim();
+                      setMusicUrl(raw ? normalizeAudioUrl(raw) : null);
                       setMusicStats(null);
                     }}
                     className="flex-1 px-2 py-1 text-xs border rounded bg-background"

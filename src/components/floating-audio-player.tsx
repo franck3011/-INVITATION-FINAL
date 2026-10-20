@@ -15,16 +15,31 @@ export function FloatingAudioPlayer({ musicUrl }: Props) {
   useEffect(() => {
     // Autoplay when mounted (which happens after envelope opens)
     if (audioRef.current) {
+      audioRef.current.muted = false;
       audioRef.current
         .play()
         .then(() => {
           setIsPlaying(true);
         })
         .catch((err) => {
-          // Autoplay blocked by browser
+          // Autoplay blocked by browser until user gesture
           console.log("Autoplay prevented:", err);
+          setIsPlaying(false);
         });
     }
+
+    const unlock = () => {
+      if (audioRef.current && audioRef.current.paused) {
+        audioRef.current.muted = false;
+        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {});
+      }
+    };
+    window.addEventListener("click", unlock, { once: true });
+    window.addEventListener("touchstart", unlock, { once: true });
+    return () => {
+      window.removeEventListener("click", unlock);
+      window.removeEventListener("touchstart", unlock);
+    };
   }, [musicUrl]);
 
   const togglePlay = () => {
@@ -46,7 +61,23 @@ export function FloatingAudioPlayer({ musicUrl }: Props) {
 
   return (
     <>
-      <audio ref={audioRef} src={musicUrl} loop onCanPlay={() => setIsLoaded(true)} />
+      <audio
+        ref={audioRef}
+        src={musicUrl}
+        loop
+        playsInline
+        preload="auto"
+        onCanPlay={() => setIsLoaded(true)}
+        style={{
+          position: "fixed",
+          top: -9999,
+          left: -9999,
+          width: 1,
+          height: 1,
+          opacity: 0,
+          pointerEvents: "none",
+        }}
+      />
 
       <motion.div
         initial={{ opacity: 0, y: 50, scale: 0.8 }}

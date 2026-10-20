@@ -14,7 +14,7 @@ import { saveMyInvitation } from "@/lib/my-invitations";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { compressAudioFile, formatAudioSize } from "@/lib/audio-compressor";
+import { compressAudioFile, formatAudioSize, normalizeAudioUrl } from "@/lib/audio-compressor";
 
 // ── Inject Google Fonts (same as existing templates) ─────────────
 const GOOGLE_FONTS_HREF =
@@ -601,7 +601,8 @@ function BuilderDemo() {
                         placeholder="https://.../musique.mp3"
                         value={musicUrl?.startsWith("data:") ? "" : (musicUrl || "")}
                         onChange={(e) => {
-                          setMusicUrl(e.target.value.trim() || null);
+                          const raw = e.target.value.trim();
+                          setMusicUrl(raw ? normalizeAudioUrl(raw) : null);
                           setAudioStats(null);
                         }}
                         className="flex-1 px-2 py-1 text-xs border rounded bg-white"

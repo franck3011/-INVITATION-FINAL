@@ -455,14 +455,22 @@ function PublicInvite() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  function startMusic() {
+    const a = audioRef.current;
+    if (!a) return;
+    a.muted = false;
+    const p = a.play();
+    if (p !== undefined) {
+      p.then(() => setMusicOn(true)).catch((err) => {
+        console.warn("[Audio] Lecture automatique différée (attente d'interaction utilisateur):", err);
+      });
+    }
+  }
+
   function handleEnter() {
     // user gesture — start music if available
-    if (event.music_url && audioRef.current) {
-      audioRef.current.muted = false;
-      audioRef.current
-        .play()
-        .then(() => setMusicOn(true))
-        .catch(() => {});
+    if (event.music_url) {
+      startMusic();
     }
     const shouldShowEnvelope = themeOverrides?.forceEnvelope || template.hasEnvelope;
     if (shouldShowEnvelope) {
@@ -486,6 +494,26 @@ function PublicInvite() {
       setMusicOn(false);
     }
   }
+
+  // Active la musique au premier geste utilisateur (toucher ou clic) n'importe où sur l'écran
+  useEffect(() => {
+    if (!event.music_url) return;
+    const unlockAudio = () => {
+      const a = audioRef.current;
+      if (a && a.paused) {
+        a.muted = false;
+        a.play()
+          .then(() => setMusicOn(true))
+          .catch(() => {});
+      }
+    };
+    window.addEventListener("click", unlockAudio, { once: true });
+    window.addEventListener("touchstart", unlockAudio, { once: true });
+    return () => {
+      window.removeEventListener("click", unlockAudio);
+      window.removeEventListener("touchstart", unlockAudio);
+    };
+  }, [event.music_url]);
 
   const programRaw = event.program;
   const program: ProgramItem[] = Array.isArray(programRaw)
@@ -2065,20 +2093,47 @@ function PublicInvite() {
           Créé avec <span className="font-display text-primary">Inviti</span> ✦
         </footer>
 
-        {/* Audio element (always mounted so we can control playback) */}
+        {/* Audio element (always mounted offscreen so we can control playback on iOS & Android) */}
         {event.music_url && (
-          <audio ref={audioRef} src={event.music_url} loop preload="auto" className="hidden" />
+          <audio
+            ref={audioRef}
+            src={event.music_url}
+            loop
+            preload="auto"
+            playsInline
+            style={{
+              position: "fixed",
+              top: -9999,
+              left: -9999,
+              width: 1,
+              height: 1,
+              opacity: 0,
+              pointerEvents: "none",
+            }}
+            onPlay={() => setMusicOn(true)}
+            onPause={() => setMusicOn(false)}
+          />
         )}
 
         {/* Floating music button */}
-        {event.music_url && entered && (
+        {event.music_url && (
           <button
             type="button"
             onClick={toggleMusic}
-            className="fixed bottom-5 right-5 z-30 rounded-full bg-primary text-primary-foreground w-12 h-12 flex items-center justify-center shadow-lg hover:scale-105 transition"
-            aria-label={musicOn ? "Pause musique" : "Jouer musique"}
+            className="fixed bottom-5 right-5 z-40 rounded-full bg-primary text-primary-foreground w-12 h-12 flex items-center justify-center shadow-2xl hover:scale-105 active:scale-95 transition"
+            aria-label={musicOn ? "Pause musique" : "Lancer la musique"}
+            title={musicOn ? "Mettre en pause" : "Activer la musique"}
           >
-            {musicOn ? "⏸" : "🎶"}
+            {musicOn ? (
+              <span className="relative flex items-center justify-center">
+                <span className="text-sm">⏸</span>
+                <span className="absolute -inset-1.5 rounded-full border border-primary-foreground/40 animate-ping opacity-60 pointer-events-none" />
+              </span>
+            ) : (
+              <span className="relative flex items-center justify-center">
+                <span className="text-base animate-bounce">🎶</span>
+              </span>
+            )}
           </button>
         )}
 

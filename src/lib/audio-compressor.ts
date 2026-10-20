@@ -177,7 +177,20 @@ export async function compressAudioFile(
     mp3Chunks.push(finalChunk);
   }
 
-  const mp3Blob = new Blob(mp3Chunks as unknown as BlobPart[], { type: "audio/mpeg" });
+  // Combine all MP3 chunks into a single unified Uint8Array buffer
+  // for rock-solid Blob, AudioContext, and Safari/iOS playback compatibility
+  const totalLength = mp3Chunks.reduce((acc, c) => acc + c.length, 0);
+  const unifiedMp3Buffer = new Uint8Array(totalLength);
+  let offset = 0;
+  for (const chunk of mp3Chunks) {
+    unifiedMp3Buffer.set(
+      new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength),
+      offset,
+    );
+    offset += chunk.length;
+  }
+
+  const mp3Blob = new Blob([unifiedMp3Buffer], { type: "audio/mpeg" });
   const baseName = file.name.replace(/\.[^.]+$/, "") || "musique";
   const compressedFile = new File([mp3Blob], `${baseName}.mp3`, {
     type: "audio/mpeg",
@@ -201,4 +214,24 @@ export async function compressAudioFile(
     duration: targetDuration,
     bitrateKbps: bitrate,
   };
+}
+
+/**
+ * Auto-corrects common audio sharing links (Dropbox, Google Drive)
+ * to direct streamable audio files.
+ */
+export function normalizeAudioUrl(url: string): string {
+  let u = url.trim();
+  if (!u) return "";
+  // Dropbox: replace dl=0 with dl=1 / raw=1
+  if (u.includes("dropbox.com")) {
+    u = u.replace(/[?&]dl=0/, "").replace(/[?&]raw=0/, "");
+    u += (u.includes("?") ? "&" : "?") + "raw=1";
+  }
+  // Google Drive: https://drive.google.com/file/d/ID/view -> direct stream
+  const gdMatch = u.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+  if (gdMatch) {
+    u = `https://drive.google.com/uc?export=download&id=${gdMatch[1]}`;
+  }
+  return u;
 }

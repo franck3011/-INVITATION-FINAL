@@ -1,6 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import {
+  supabaseAdmin,
+  isSupabaseOnline,
+  markSupabaseDown,
+  markSupabaseUp,
+} from "@/integrations/supabase/client.server";
 import {
   saveLocalEvent,
   getLocalEventBySlug,
@@ -162,20 +167,23 @@ export const createEvent = createServerFn({ method: "POST" })
   .inputValidator((d: unknown) => createSchema.parse(d))
   .handler(async ({ data }) => {
     let slug = genSlug();
-    try {
-      for (let i = 0; i < 3; i++) {
-        const { data: existing } = await supabaseAdmin
-          .from("events")
-          .select("id")
-          .eq("slug", slug)
-          .maybeSingle();
-        if (!existing) break;
-        slug = genSlug();
+    if (isSupabaseOnline()) {
+      try {
+        for (let i = 0; i < 3; i++) {
+          const { data: existing } = await supabaseAdmin
+            .from("events")
+            .select("id")
+            .eq("slug", slug)
+            .maybeSingle();
+          if (!existing) break;
+          slug = genSlug();
+        }
+      } catch (err) {
+        markSupabaseDown(err);
       }
-    } catch {
-      while (getLocalEventBySlug(slug)) {
-        slug = genSlug();
-      }
+    }
+    while (getLocalEventBySlug(slug)) {
+      slug = genSlug();
     }
     const adminToken = genToken();
     const defaultExpiry = new Date(new Date(data.eventDate).getTime() + 2 * 24 * 3600 * 1000).toISOString();
@@ -216,20 +224,25 @@ export const createEvent = createServerFn({ method: "POST" })
       created_at: new Date().toISOString(),
     };
 
-    try {
-      const { data: row, error } = await supabaseAdmin
-        .from("events")
-        .insert(eventRecord as any)
-        .select("slug, admin_token")
-        .single();
-      if (error || !row) throw new Error(error?.message ?? "create failed");
-      saveLocalEvent(eventRecord);
-      return { slug: row.slug, adminToken: row.admin_token };
-    } catch (err: any) {
-      console.warn("[createEvent] Supabase indisponible ou en pause. Sauvegarde locale effectuée:", err?.message || err);
-      saveLocalEvent(eventRecord);
-      return { slug: eventRecord.slug, adminToken: eventRecord.admin_token };
+    if (isSupabaseOnline()) {
+      try {
+        const { data: row, error } = await supabaseAdmin
+          .from("events")
+          .insert(eventRecord as any)
+          .select("slug, admin_token")
+          .single();
+        if (!error && row) {
+          markSupabaseUp();
+          saveLocalEvent(eventRecord);
+          return { slug: row.slug, adminToken: row.admin_token };
+        }
+        if (error) markSupabaseDown(error);
+      } catch (err: any) {
+        markSupabaseDown(err);
+      }
     }
+    saveLocalEvent(eventRecord);
+    return { slug: eventRecord.slug, adminToken: eventRecord.admin_token };
   });
 
 function unwrapExt(row: any) {
@@ -259,15 +272,23 @@ function unwrapExt(row: any) {
 export const getEventBySlug = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => z.object({ slug: z.string() }).parse(d))
   .handler(async ({ data }) => {
-    try {
-      const { data: row, error } = (await supabaseAdmin
-        .from("events")
-        .select("*")
-        .eq("slug", data.slug)
-        .maybeSingle()) as any;
-      if (!error && row) return unwrapExt(row);
-    } catch (e) {
-      // Supabase offline
+    if (isSupabaseOnline()) {
+      try {
+        const { data: row, error } = (await supabaseAdmin
+          .from("events")
+          .select("*")
+          .eq("slug", data.slug)
+          .maybeSingle()) as any;
+        if (!error && row) {
+          markSupabaseUp();
+          return unwrapExt(row);
+        }
+        if (error) {
+          markSupabaseDown(error);
+        }
+      } catch (e) {
+        markSupabaseDown(e);
+      }
     }
     const local = getLocalEventBySlug(data.slug);
     if (local) return unwrapExt(local);
@@ -277,23 +298,29 @@ export const getEventBySlug = createServerFn({ method: "GET" })
 export const getEventByAdminToken = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => z.object({ token: z.string() }).parse(d))
   .handler(async ({ data }) => {
-    try {
-      const { data: row, error } = (await supabaseAdmin
-        .from("events")
-        .select("*")
-        .eq("admin_token", data.token)
-        .maybeSingle()) as any;
-      if (!error && row) {
-        const unwrappedRow = unwrapExt(row);
-        const { data: rsvps } = await supabaseAdmin
-          .from("rsvps")
+    if (isSupabaseOnline()) {
+      try {
+        const { data: row, error } = (await supabaseAdmin
+          .from("events")
           .select("*")
-          .eq("event_id", unwrappedRow.id)
-          .order("created_at", { ascending: false });
-        return { event: unwrappedRow, rsvps: rsvps ?? [] };
+          .eq("admin_token", data.token)
+          .maybeSingle()) as any;
+        if (!error && row) {
+          markSupabaseUp();
+          const unwrappedRow = unwrapExt(row);
+          const { data: rsvps } = await supabaseAdmin
+            .from("rsvps")
+            .select("*")
+            .eq("event_id", unwrappedRow.id)
+            .order("created_at", { ascending: false });
+          return { event: unwrappedRow, rsvps: rsvps ?? [] };
+        }
+        if (error) {
+          markSupabaseDown(error);
+        }
+      } catch (e) {
+        markSupabaseDown(e);
       }
-    } catch (e) {
-      // Supabase offline
     }
     const local = getLocalEventByAdminToken(data.token);
     if (local) {
@@ -400,74 +427,83 @@ export const submitRsvp = createServerFn({ method: "POST" })
           }
         : null;
 
-    try {
-      // 4. Protection Anti-Flood / Anti-doublon (empêche le spam en boucle dans les 4 secondes)
-      const { data: recentRsvps } = await supabaseAdmin
-        .from("rsvps")
-        .select("id, created_at")
-        .eq("event_id", ev.id)
-        .ilike("name", data.name.trim())
-        .gt("created_at", new Date(Date.now() - 4 * 1000).toISOString());
-      if (recentRsvps && recentRsvps.length > 0) {
-        throw new Error("Une réponse avec ce nom vient d'être envoyée à l'instant. Veuillez patienter 4 secondes.");
-      }
+    if (isSupabaseOnline()) {
+      try {
+        // 4. Protection Anti-Flood / Anti-doublon (empêche le spam en boucle dans les 4 secondes)
+        const { data: recentRsvps } = await supabaseAdmin
+          .from("rsvps")
+          .select("id, created_at")
+          .eq("event_id", ev.id)
+          .ilike("name", data.name.trim())
+          .gt("created_at", new Date(Date.now() - 4 * 1000).toISOString());
+        if (recentRsvps && recentRsvps.length > 0) {
+          throw new Error("Une réponse avec ce nom vient d'être envoyée à l'instant. Veuillez patienter 4 secondes.");
+        }
 
-      let { error } = await supabaseAdmin.from("rsvps").insert({
-        ...baseRsvp,
-        extra_data: extraDataObj,
-      } as any);
-
-      if (error && (error.message.includes("schema cache") || error.message.includes("column") || error.message.includes("colonne"))) {
-        const fallbackMessage = [
-          data.message,
-          data.dietRestrictions ? `[Régime: ${data.dietRestrictions}]` : null,
-          data.accompanyingNames && data.accompanyingNames.length > 0 ? `[Accompagnants: ${data.accompanyingNames.join(", ")}]` : null,
-          data.company ? `[Société: ${data.company}]` : null,
-          data.jobTitle ? `[Poste: ${data.jobTitle}]` : null,
-          data.phone ? `[Tél: ${data.phone}]` : null,
-          data.email ? `[Email: ${data.email}]` : null,
-        ].filter(Boolean).join(" ");
-
-        const res = await supabaseAdmin.from("rsvps").insert({
+        let { error } = await supabaseAdmin.from("rsvps").insert({
           ...baseRsvp,
-          message: fallbackMessage || null,
+          extra_data: extraDataObj,
         } as any);
-        error = res.error;
-      }
 
-      if (error) throw new Error(error.message);
-      saveLocalRsvp({ ...baseRsvp, extra_data: extraDataObj });
-      return { ok: true };
-    } catch (err: any) {
-      if (err.message && err.message.includes("Veuillez patienter 4 secondes")) {
-        throw err;
+        if (error && (error.message.includes("schema cache") || error.message.includes("column") || error.message.includes("colonne"))) {
+          const fallbackMessage = [
+            data.message,
+            data.dietRestrictions ? `[Régime: ${data.dietRestrictions}]` : null,
+            data.accompanyingNames && data.accompanyingNames.length > 0 ? `[Accompagnants: ${data.accompanyingNames.join(", ")}]` : null,
+            data.company ? `[Société: ${data.company}]` : null,
+            data.jobTitle ? `[Poste: ${data.jobTitle}]` : null,
+            data.phone ? `[Tél: ${data.phone}]` : null,
+            data.email ? `[Email: ${data.email}]` : null,
+          ].filter(Boolean).join(" ");
+
+          const res = await supabaseAdmin.from("rsvps").insert({
+            ...baseRsvp,
+            message: fallbackMessage || null,
+          } as any);
+          error = res.error;
+        }
+
+        if (error) {
+          markSupabaseDown(error);
+        } else {
+          markSupabaseUp();
+        }
+      } catch (err: any) {
+        if (err.message && err.message.includes("Veuillez patienter 4 secondes")) {
+          throw err;
+        }
+        markSupabaseDown(err);
       }
-      console.warn("[submitRsvp] Supabase indisponible ou en pause. Sauvegarde locale:", err?.message || err);
-      saveLocalRsvp({ ...baseRsvp, extra_data: extraDataObj });
-      return { ok: true };
     }
+    saveLocalRsvp({ ...baseRsvp, extra_data: extraDataObj });
+    return { ok: true };
   });
 
 export const getPublicWishes = createServerFn({ method: "GET" })
   .inputValidator((d: unknown) => z.object({ slug: z.string() }).parse(d))
   .handler(async ({ data }) => {
     let all: any[] = [];
-    try {
-      const { data: ev } = await supabaseAdmin
-        .from("events")
-        .select("id")
-        .eq("slug", data.slug)
-        .maybeSingle();
-      if (ev) {
-        const { data: rsvps } = await supabaseAdmin
-          .from("rsvps")
-          .select("name, status, guest_count, message, created_at")
-          .eq("event_id", ev.id)
-          .order("created_at", { ascending: false });
-        if (rsvps && rsvps.length > 0) all = rsvps;
+    if (isSupabaseOnline()) {
+      try {
+        const { data: ev, error: evErr } = await supabaseAdmin
+          .from("events")
+          .select("id")
+          .eq("slug", data.slug)
+          .maybeSingle();
+        if (evErr) {
+          markSupabaseDown(evErr);
+        } else if (ev) {
+          const { data: rsvps, error: rsvpsErr } = await supabaseAdmin
+            .from("rsvps")
+            .select("name, status, guest_count, message, created_at")
+            .eq("event_id", ev.id)
+            .order("created_at", { ascending: false });
+          if (rsvpsErr) markSupabaseDown(rsvpsErr);
+          else if (rsvps && rsvps.length > 0) all = rsvps;
+        }
+      } catch (err) {
+        markSupabaseDown(err);
       }
-    } catch {
-      // Supabase offline
     }
 
     if (all.length === 0) {

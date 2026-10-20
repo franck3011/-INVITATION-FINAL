@@ -5,6 +5,37 @@
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
 
+let isCircuitOpen = false;
+let nextProbeTime = 0;
+
+/**
+ * Fast circuit breaker check to avoid 15-30s DNS/connection timeouts
+ * when Supabase is paused or unreachable.
+ */
+export function isSupabaseOnline(): boolean {
+  if (isCircuitOpen && Date.now() < nextProbeTime) {
+    return false;
+  }
+  return true;
+}
+
+export function markSupabaseDown(reason?: unknown) {
+  isCircuitOpen = true;
+  nextProbeTime = Date.now() + 120_000; // 2 minutes cooldown before retrying Supabase
+  console.warn(
+    "[Supabase CircuitBreaker] Supabase is unreachable. Instant local-store fallback active for 2 min.",
+    reason instanceof Error ? reason.message : reason,
+  );
+}
+
+export function markSupabaseUp() {
+  if (isCircuitOpen) {
+    console.log("[Supabase CircuitBreaker] Supabase is back online.");
+  }
+  isCircuitOpen = false;
+  nextProbeTime = 0;
+}
+
 function createSupabaseAdminClient() {
   const SUPABASE_URL =
     process.env.SUPABASE_URL ||
@@ -31,6 +62,27 @@ function createSupabaseAdminClient() {
       storage: undefined,
       persistSession: false,
       autoRefreshToken: false,
+    },
+    global: {
+      fetch: (input, init) => {
+        // Enforce a strict 1500ms timeout on all server-side Supabase requests
+        // to guarantee instantaneous fallbacks and zero user waiting
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1500);
+        return fetch(input, {
+          ...init,
+          signal: controller.signal,
+        })
+          .then((res) => {
+            markSupabaseUp();
+            return res;
+          })
+          .catch((err) => {
+            markSupabaseDown(err);
+            throw err;
+          })
+          .finally(() => clearTimeout(timeoutId));
+      },
     },
   });
 }
