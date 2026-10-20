@@ -288,6 +288,29 @@ function BuilderDemo() {
         eventDate: eventDate,
         createdAt: new Date().toISOString(),
       });
+      try {
+        const fullBuilderEvent = {
+          id: res.slug,
+          slug: res.slug,
+          admin_token: res.adminToken,
+          template_id: "builder",
+          title: eventTitle,
+          event_date: eventDate,
+          location: "À définir",
+          music_url: musicUrl,
+          theme_overrides: {
+            builderData: blocks,
+            fontPairIndex: 0,
+            forceEnvelope: forceEnvelope,
+            scrollAnimation: scrollAnimation,
+          },
+          created_at: new Date().toISOString(),
+        };
+        localStorage.setItem(`inviti_event_${res.slug}`, JSON.stringify(fullBuilderEvent));
+        localStorage.setItem(`inviti_admin_${res.adminToken}`, JSON.stringify(fullBuilderEvent));
+      } catch (cacheErr) {
+        console.warn("[Cache Error]", cacheErr);
+      }
       toast.success("Invitation publiée avec succès !");
       navigate({ to: "/admin/$token", params: { token: res.adminToken } });
     } catch (err: any) {

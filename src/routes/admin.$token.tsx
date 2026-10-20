@@ -2,7 +2,7 @@ import { createFileRoute, notFound, Link, useRouter } from "@tanstack/react-rout
 import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { SiteHeader, SiteFooter } from "@/components/site-chrome";
-import { getEventByAdminToken, updateEvent, uploadMedia } from "@/fns/events.functions";
+import { getEventByAdminToken, updateEvent, uploadMedia, syncClientEvent } from "@/fns/events.functions";
 import { TITLE_FONT_OPTIONS } from "@/components/preview-invitation";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
@@ -36,8 +36,7 @@ function getShareOrigin(): string {
 export const Route = createFileRoute("/admin/$token")({
   loader: async ({ params }) => {
     const res = await getEventByAdminToken({ data: { token: params.token } });
-    if (!res) throw notFound();
-    return res;
+    return res ?? { event: null, rsvps: [], token: params.token };
   },
   head: () => ({
     meta: [{ title: "Tableau de bord — Inviti" }, { name: "robots", content: "noindex" }],
@@ -51,7 +50,46 @@ export const Route = createFileRoute("/admin/$token")({
 });
 
 function AdminDashboard() {
-  const { event, rsvps } = Route.useLoaderData();
+  const loaderData = Route.useLoaderData();
+  const syncEvent = useServerFn(syncClientEvent);
+  const [event, setEvent] = useState<any>(() => {
+    if (loaderData.event) return loaderData.event;
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem(`inviti_admin_${(loaderData as any).token}`);
+        if (cached) return JSON.parse(cached);
+      } catch {}
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (!loaderData.event && event) {
+      syncEvent({ data: { event } }).catch(() => {});
+    }
+  }, [loaderData.event, event, syncEvent]);
+
+  if (!event) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-8 bg-background text-center">
+        <div className="max-w-md space-y-3">
+          <div className="text-5xl">🔒</div>
+          <h1 className="font-display text-3xl text-primary">Lien admin invalide</h1>
+          <p className="text-muted-foreground text-sm">
+            Ce tableau de bord semble introuvable ou a été supprimé.
+          </p>
+          <a
+            href="/"
+            className="inline-block mt-4 px-5 py-2 rounded-full bg-primary text-primary-foreground text-xs font-medium"
+          >
+            Retour à l'accueil
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  const rsvps = loaderData.rsvps ?? [];
   const router = useRouter();
   const update = useServerFn(updateEvent);
   const [editing, setEditing] = useState(false);

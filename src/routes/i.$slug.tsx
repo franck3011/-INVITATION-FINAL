@@ -3,7 +3,12 @@ import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion";
 import { getTemplate, isSeminaireTemplate } from "@/lib/templates";
-import { getEventBySlug, submitRsvp, getPublicWishes } from "@/fns/events.functions";
+import {
+  getEventBySlug,
+  submitRsvp,
+  getPublicWishes,
+  syncClientEvent,
+} from "@/fns/events.functions";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
 import { QRCodeCanvas } from "qrcode.react";
@@ -62,8 +67,7 @@ function parseTimeMinutes(s: string | undefined): number | null {
 export const Route = createFileRoute("/i/$slug")({
   loader: async ({ params }) => {
     const ev = await getEventBySlug({ data: { slug: params.slug } });
-    if (!ev) throw notFound();
-    return { event: ev, expired: false };
+    return { event: ev ?? null, expired: false, slug: params.slug };
   },
   head: ({ loaderData }) => {
     const ev = loaderData?.event;
@@ -397,7 +401,46 @@ function Countdown({ target }: { target: string }) {
 }
 
 function PublicInvite() {
-  const { event, expired } = Route.useLoaderData();
+  const loaderData = Route.useLoaderData();
+  const syncEvent = useServerFn(syncClientEvent);
+  const [event, setEvent] = useState<any>(() => {
+    if (loaderData.event) return loaderData.event;
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem(`inviti_event_${loaderData.slug}`);
+        if (cached) return JSON.parse(cached);
+      } catch {}
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (!loaderData.event && event) {
+      syncEvent({ data: { event } }).catch(() => {});
+    }
+  }, [loaderData.event, event, syncEvent]);
+
+  if (!event) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-center p-8 bg-ivory text-foreground">
+        <div className="max-w-md space-y-3">
+          <div className="text-5xl">💌</div>
+          <h1 className="font-display text-3xl text-primary">Invitation introuvable</h1>
+          <p className="text-muted-foreground text-sm">
+            Cette invitation semble introuvable ou a expiré.
+          </p>
+          <a
+            href="/"
+            className="inline-block mt-4 px-5 py-2 rounded-full bg-primary text-primary-foreground text-xs font-medium hover:opacity-90 transition"
+          >
+            Créer une invitation
+          </a>
+        </div>
+      </div>
+    );
+  }
+
+  const expired = loaderData.expired;
   const template = getTemplate(event.template_id) ?? getTemplate("mariage-dore")!;
   const submit = useServerFn(submitRsvp);
   const fetchWishes = useServerFn(getPublicWishes);

@@ -4,26 +4,41 @@
 // For user-authenticated queries (with RLS), use the auth middleware instead.
 import { createClient } from "@supabase/supabase-js";
 import type { Database } from "./types";
+import fs from "fs";
+import path from "path";
+import os from "os";
 
 let isCircuitOpen = false;
 let nextProbeTime = 0;
+const FLAG_FILE = path.join(os.tmpdir(), "supabase_offline.flag");
 
 /**
- * Fast circuit breaker check to avoid 15-30s DNS/connection timeouts
+ * Fast circuit breaker check to avoid DNS/connection timeouts
  * when Supabase is paused or unreachable.
  */
 export function isSupabaseOnline(): boolean {
   if (isCircuitOpen && Date.now() < nextProbeTime) {
     return false;
   }
+  try {
+    if (fs.existsSync(FLAG_FILE)) {
+      const stat = fs.statSync(FLAG_FILE);
+      if (Date.now() - stat.mtimeMs < 120_000) {
+        return false;
+      }
+    }
+  } catch {}
   return true;
 }
 
 export function markSupabaseDown(reason?: unknown) {
   isCircuitOpen = true;
   nextProbeTime = Date.now() + 120_000; // 2 minutes cooldown before retrying Supabase
+  try {
+    fs.writeFileSync(FLAG_FILE, String(Date.now()));
+  } catch {}
   console.warn(
-    "[Supabase CircuitBreaker] Supabase is unreachable. Instant local-store fallback active for 2 min.",
+    "[Supabase CircuitBreaker] Supabase is unreachable. Instant local fallback active for 2 min.",
     reason instanceof Error ? reason.message : reason,
   );
 }
@@ -34,6 +49,9 @@ export function markSupabaseUp() {
   }
   isCircuitOpen = false;
   nextProbeTime = 0;
+  try {
+    if (fs.existsSync(FLAG_FILE)) fs.unlinkSync(FLAG_FILE);
+  } catch {}
 }
 
 function createSupabaseAdminClient() {
@@ -65,10 +83,10 @@ function createSupabaseAdminClient() {
     },
     global: {
       fetch: (input, init) => {
-        // Enforce a strict 1500ms timeout on all server-side Supabase requests
+        // Enforce a strict 500ms timeout on all server-side Supabase requests
         // to guarantee instantaneous fallbacks and zero user waiting
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 1500);
+        const timeoutId = setTimeout(() => controller.abort(), 500);
         return fetch(input, {
           ...init,
           signal: controller.signal,

@@ -331,6 +331,16 @@ export const getEventByAdminToken = createServerFn({ method: "GET" })
     return null;
   });
 
+export const syncClientEvent = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => z.object({ event: z.record(z.any()) }).parse(d))
+  .handler(async ({ data }) => {
+    if (data.event && data.event.slug) {
+      saveLocalEvent(data.event);
+      return { ok: true };
+    }
+    return { ok: false };
+  });
+
 const rsvpSchema = z.object({
   slug: z.string(),
   name: z.string().min(1).max(120),

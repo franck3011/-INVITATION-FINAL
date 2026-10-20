@@ -905,6 +905,40 @@ function CreatePage() {
         eventDate: safeIso(eventDate),
         createdAt: new Date().toISOString(),
       });
+      // Cache full event in localStorage so it can never be lost even if server restarts
+      try {
+        const fullEventRecord = {
+          id: res.slug,
+          slug: res.slug,
+          admin_token: res.adminToken,
+          template_id: template.id,
+          title: title.trim(),
+          host_name: hostName.trim() || null,
+          event_date: safeIso(eventDate) || new Date().toISOString(),
+          link_expires_at: safeIso(linkExpiresAt),
+          location: location.trim(),
+          map_link: mapLink.trim() || null,
+          venue_image_url: safeVenueImage || null,
+          message: [message, bibleVerse].filter(Boolean).join("\n\n").trim() || null,
+          cover_image_url: safeCoverImage || null,
+          music_url: musicUrl || null,
+          story_text: storyText.trim() || null,
+          theme_overrides: themeOverrides,
+          program: cleanProgram,
+          gallery_urls: safeCoverImage2 ? [safeCoverImage2, ...safeGalleryUrls] : safeGalleryUrls,
+          dress_code: dressCode.trim() || null,
+          gift_info: giftInfo.trim() || null,
+          accommodation_info: accommodationInfo.trim() || null,
+          invited_count: parsedInvited,
+          max_guests_per_rsvp: parsedMaxGuests,
+          rsvp_deadline: safeIso(rsvpDeadline),
+          created_at: new Date().toISOString(),
+        };
+        localStorage.setItem(`inviti_event_${res.slug}`, JSON.stringify(fullEventRecord));
+        localStorage.setItem(`inviti_admin_${res.adminToken}`, JSON.stringify(fullEventRecord));
+      } catch (cacheErr) {
+        console.warn("[Cache Error]", cacheErr);
+      }
       // Clear auto-saved draft on success
       localStorage.removeItem(DRAFT_KEY);
       navigate({ to: "/admin/$token", params: { token: res.adminToken } });
