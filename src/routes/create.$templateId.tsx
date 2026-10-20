@@ -711,6 +711,16 @@ function CreatePage() {
       description: p.description.trim() || null,
     }));
 
+  function safeIso(val: string | null | undefined): string | null {
+    if (!val || !val.trim()) return null;
+    try {
+      const d = new Date(val);
+      return isNaN(d.getTime()) ? null : d.toISOString();
+    } catch {
+      return null;
+    }
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!title || !eventDate || !location) {
@@ -719,34 +729,41 @@ function CreatePage() {
     }
     setSubmitting(true);
     try {
+      const parsedInvited =
+        invitedCount && !isNaN(parseInt(invitedCount)) ? parseInt(invitedCount) : null;
+      const parsedMaxGuests =
+        maxGuestsPerRsvp && !isNaN(parseInt(maxGuestsPerRsvp))
+          ? parseInt(maxGuestsPerRsvp)
+          : null;
+
       const res = await create({
         data: {
           templateId: template.id,
-          title,
-          hostName: hostName || null,
-          eventDate: new Date(eventDate).toISOString(),
-          linkExpiresAt: linkExpiresAt ? new Date(linkExpiresAt).toISOString() : null,
-          location,
-          mapLink: mapLink || null,
-          venueImageUrl,
-          message: [message, bibleVerse].filter(Boolean).join("\n\n") || null,
-          coverImageUrl,
-          musicUrl,
-          storyText: storyText || null,
+          title: title.trim(),
+          hostName: hostName.trim() || null,
+          eventDate: safeIso(eventDate) || new Date().toISOString(),
+          linkExpiresAt: safeIso(linkExpiresAt),
+          location: location.trim(),
+          mapLink: mapLink.trim() || null,
+          venueImageUrl: venueImageUrl || null,
+          message: [message, bibleVerse].filter(Boolean).join("\n\n").trim() || null,
+          coverImageUrl: coverImageUrl || null,
+          musicUrl: musicUrl || null,
+          storyText: storyText.trim() || null,
           themeOverrides,
           program: cleanProgram,
           galleryUrls: coverImageUrl2 ? [coverImageUrl2, ...galleryUrls] : galleryUrls,
-          dressCode: dressCode || null,
-          giftInfo: giftInfo || null,
-          accommodationInfo: accommodationInfo || null,
-          invitedCount: invitedCount ? parseInt(invitedCount) : null,
-          maxGuestsPerRsvp: maxGuestsPerRsvp ? parseInt(maxGuestsPerRsvp) : null,
-          rsvpDeadline: rsvpDeadline ? new Date(rsvpDeadline).toISOString() : null,
-          seminaireTheme: seminaireTheme || null,
-          seminaireOrganisateur: seminaireOrganisateur || null,
-          seminaireIntervenants: seminaireIntervenants || null,
-          seminaireSponsors: seminaireSponsors || null,
-          seminaireContact: seminaireContact || null,
+          dressCode: dressCode.trim() || null,
+          giftInfo: giftInfo.trim() || null,
+          accommodationInfo: accommodationInfo.trim() || null,
+          invitedCount: parsedInvited,
+          maxGuestsPerRsvp: parsedMaxGuests,
+          rsvpDeadline: safeIso(rsvpDeadline),
+          seminaireTheme: seminaireTheme.trim() || null,
+          seminaireOrganisateur: seminaireOrganisateur.trim() || null,
+          seminaireIntervenants: seminaireIntervenants.trim() || null,
+          seminaireSponsors: seminaireSponsors.trim() || null,
+          seminaireContact: seminaireContact.trim() || null,
         },
       });
       saveMyInvitation({
@@ -754,15 +771,26 @@ function CreatePage() {
         adminToken: res.adminToken,
         title,
         templateId: template.id,
-        eventDate: eventDate ? new Date(eventDate).toISOString() : null,
+        eventDate: safeIso(eventDate),
         createdAt: new Date().toISOString(),
       });
       // Clear auto-saved draft on success
       localStorage.removeItem(DRAFT_KEY);
       navigate({ to: "/admin/$token", params: { token: res.adminToken } });
-    } catch (err) {
-      console.error(err);
-      const msg = err instanceof Error ? err.message : "Erreur lors de la création";
+    } catch (err: any) {
+      console.error("[Creation Error]", err);
+      let msg = "Erreur lors de la création";
+      if (typeof err === "string") {
+        msg = err;
+      } else if (err?.message) {
+        msg = err.message;
+      } else if (Array.isArray(err) && err[0]?.message) {
+        msg = `${err[0].path?.join(".") || "Champ"}: ${err[0].message}`;
+      } else if (err?.data?.message) {
+        msg = err.data.message;
+      } else if (err instanceof Error) {
+        msg = err.message;
+      }
       toast.error(msg);
     } finally {
       setSubmitting(false);

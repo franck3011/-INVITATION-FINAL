@@ -29,38 +29,31 @@ function genToken() {
   return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
-const programItemSchema = z
-  .object({
-    time: z.string().max(40).optional().default(""),
-    title: z.string().max(120).optional().default(""),
-    description: z.string().max(400).optional().nullable(),
-  })
-  .refine((p) => p.time?.trim() || p.title?.trim() || (p.description ?? "").trim(), {
-    message: "Au moins un champ doit être rempli",
-  });
+const programItemSchema = z.object({
+  time: z.string().max(100).optional().nullable().default(""),
+  title: z.string().max(300).optional().nullable().default(""),
+  description: z.string().max(1000).optional().nullable(),
+});
 
 const baseFields = {
   templateId: z.string().min(1),
-  title: z.string().min(1).max(120),
-  hostName: z.string().max(120).optional().nullable(),
+  title: z.string().min(1).max(200),
+  hostName: z.string().max(200).optional().nullable(),
   eventDate: z.string().min(1),
   linkExpiresAt: z.string().optional().nullable(),
-  location: z.string().min(1).max(240),
-  mapLink: z.string().url().optional().nullable(),
+  location: z.string().min(1).max(500),
+  mapLink: z.string().max(2000).optional().nullable(),
   venueImageUrl: z.string().optional().nullable(),
-  message: z.string().max(2000).optional().nullable(),
+  message: z.string().max(5000).optional().nullable(),
   coverImageUrl: z.string().optional().nullable(),
   musicUrl: z.string().optional().nullable(),
-  storyText: z.string().max(4000).optional().nullable(),
+  storyText: z.string().max(10000).optional().nullable(),
   themeOverrides: z
     .object({
-      fontPairIndex: z.number().int().min(0).max(26).optional().nullable(),
-      titleFont: z.enum(["script", "display", "serif", "sans"]).optional().nullable(),
+      fontPairIndex: z.number().int().min(0).max(50).optional().nullable(),
+      titleFont: z.string().max(50).optional().nullable(),
       forceEnvelope: z.boolean().optional().nullable(),
-      scrollAnimation: z
-        .enum(["fade-blur", "fade-slide", "scale-up", "none"])
-        .optional()
-        .nullable(),
+      scrollAnimation: z.string().max(50).optional().nullable(),
       layoutOverride: z.string().optional().nullable(),
       accent: z.string().max(200).optional().nullable(),
       bg: z.string().max(200).optional().nullable(),
@@ -76,67 +69,67 @@ const baseFields = {
       messageColor: z.string().max(200).optional().nullable(),
       extraSectionColor: z.string().max(200).optional().nullable(),
       ceremonyColor: z.string().max(200).optional().nullable(),
-      fontWeightTitle: z.number().min(100).max(900).optional().nullable(),
-      fontWeightSubtitle: z.number().min(100).max(900).optional().nullable(),
-      fontWeightDate: z.number().min(100).max(900).optional().nullable(),
-      fontWeightAll: z.number().min(100).max(900).optional().nullable(),
+      fontWeightTitle: z.number().optional().nullable(),
+      fontWeightSubtitle: z.number().optional().nullable(),
+      fontWeightDate: z.number().optional().nullable(),
+      fontWeightAll: z.number().optional().nullable(),
       builderData: z.any().optional().nullable(),
       // Couleurs enveloppe
       envelopeBody: z.string().max(200).optional().nullable(),
       envelopeFlap: z.string().max(200).optional().nullable(),
       envelopeSeal: z.string().max(200).optional().nullable(),
-      envelopeSealText: z.string().max(20).optional().nullable(),
+      envelopeSealText: z.string().max(50).optional().nullable(),
       envelopeCardBg: z.string().max(200).optional().nullable(),
       // Textes personnalisables
-      textInvitationPour: z.string().max(200).optional().nullable(),
-      textCliquezSceau: z.string().max(200).optional().nullable(),
-      textNotreHistoire: z.string().max(200).optional().nullable(),
-      textLeDeroule: z.string().max(200).optional().nullable(),
-      textLeLieu: z.string().max(200).optional().nullable(),
-      textGalerie: z.string().max(200).optional().nullable(),
-      textInfosPratiques: z.string().max(200).optional().nullable(),
-      textPlusQue: z.string().max(200).optional().nullable(),
-      textSouvenirs: z.string().max(200).optional().nullable(),
-      textBonASavoir: z.string().max(200).optional().nullable(),
-      textRsvpTitre: z.string().max(200).optional().nullable(),
-      textRsvpSousTitre: z.string().max(200).optional().nullable(),
-      textDressCode: z.string().max(200).optional().nullable(),
-      textCadeaux: z.string().max(200).optional().nullable(),
-      textHebergement: z.string().max(200).optional().nullable(),
+      textInvitationPour: z.string().max(500).optional().nullable(),
+      textCliquezSceau: z.string().max(500).optional().nullable(),
+      textNotreHistoire: z.string().max(500).optional().nullable(),
+      textLeDeroule: z.string().max(500).optional().nullable(),
+      textLeLieu: z.string().max(500).optional().nullable(),
+      textGalerie: z.string().max(500).optional().nullable(),
+      textInfosPratiques: z.string().max(500).optional().nullable(),
+      textPlusQue: z.string().max(500).optional().nullable(),
+      textSouvenirs: z.string().max(500).optional().nullable(),
+      textBonASavoir: z.string().max(500).optional().nullable(),
+      textRsvpTitre: z.string().max(500).optional().nullable(),
+      textRsvpSousTitre: z.string().max(500).optional().nullable(),
+      textDressCode: z.string().max(500).optional().nullable(),
+      textCadeaux: z.string().max(500).optional().nullable(),
+      textHebergement: z.string().max(500).optional().nullable(),
       // Tailles de police
-      fontSizeTitle: z.number().min(8).max(120).optional().nullable(),
-      fontSizeSubtitle: z.number().min(8).max(120).optional().nullable(),
-      fontSizeBody: z.number().min(8).max(60).optional().nullable(),
-      fontSizeLabel: z.number().min(6).max(40).optional().nullable(),
-      fontSizeDate: z.number().min(10).max(60).optional().nullable(),
-      fontSizeMessage: z.number().min(8).max(40).optional().nullable(),
-      fontSizeEnvelopeTitle: z.number().min(8).max(80).optional().nullable(),
-      fontSizeEnvelopeSeal: z.number().min(8).max(80).optional().nullable(),
+      fontSizeTitle: z.number().optional().nullable(),
+      fontSizeSubtitle: z.number().optional().nullable(),
+      fontSizeBody: z.number().optional().nullable(),
+      fontSizeLabel: z.number().optional().nullable(),
+      fontSizeDate: z.number().optional().nullable(),
+      fontSizeMessage: z.number().optional().nullable(),
+      fontSizeEnvelopeTitle: z.number().optional().nullable(),
+      fontSizeEnvelopeSeal: z.number().optional().nullable(),
       // Nouveaux champs Séminaire Pro (vidéo, intervenants avec photo, logos sponsors)
-      seminaireVideoUrl: z.string().url().optional().nullable(),
+      seminaireVideoUrl: z.string().max(2000).optional().nullable(),
       seminaireSpeakers: z
         .array(
           z.object({
-            name: z.string().max(100),
-            role: z.string().max(100).optional().nullable(),
-            company: z.string().max(100).optional().nullable(),
-            photoUrl: z.string().url().optional().nullable(),
+            name: z.string().max(200),
+            role: z.string().max(200).optional().nullable(),
+            company: z.string().max(200).optional().nullable(),
+            photoUrl: z.string().max(2000).optional().nullable(),
           }),
         )
         .optional()
         .nullable(),
-      seminaireSponsorLogos: z.array(z.string().url()).optional().nullable(),
+      seminaireSponsorLogos: z.array(z.string().max(2000)).optional().nullable(),
       // Multilingue
-      lang: z.enum(["fr", "en", "ar"]).optional().nullable(),
+      lang: z.string().max(10).optional().nullable(),
       // Liste de cadeaux (tableau d'items)
       giftList: z
         .array(
           z.object({
-            title: z.string().max(200),
-            description: z.string().max(500).optional().nullable(),
-            url: z.string().url().optional().nullable(),
+            title: z.string().max(300),
+            description: z.string().max(1000).optional().nullable(),
+            url: z.string().max(2000).optional().nullable(),
             price: z.string().max(100).optional().nullable(),
-            emoji: z.string().max(10).optional().nullable(),
+            emoji: z.string().max(50).optional().nullable(),
           }),
         )
         .optional()
@@ -145,20 +138,20 @@ const baseFields = {
     .passthrough()
     .optional()
     .nullable(),
-  program: z.array(programItemSchema).max(30).optional().default([]),
-  galleryUrls: z.array(z.string()).max(30).optional().default([]),
-  dressCode: z.string().max(500).optional().nullable(),
-  giftInfo: z.string().max(1000).optional().nullable(),
-  accommodationInfo: z.string().max(1000).optional().nullable(),
+  program: z.array(programItemSchema).max(50).optional().default([]),
+  galleryUrls: z.array(z.string()).max(50).optional().default([]),
+  dressCode: z.string().max(1000).optional().nullable(),
+  giftInfo: z.string().max(2000).optional().nullable(),
+  accommodationInfo: z.string().max(2000).optional().nullable(),
   invitedCount: z.number().int().min(0).max(100000).optional().nullable(),
-  maxGuestsPerRsvp: z.number().int().min(1).max(100).optional().nullable(),
+  maxGuestsPerRsvp: z.number().int().min(1).max(1000).optional().nullable(),
   rsvpDeadline: z.string().optional().nullable(),
   // Séminaire
-  seminaireTheme: z.string().max(200).optional().nullable(),
-  seminaireOrganisateur: z.string().max(200).optional().nullable(),
-  seminaireIntervenants: z.string().max(2000).optional().nullable(),
-  seminaireSponsors: z.string().max(1000).optional().nullable(),
-  seminaireContact: z.string().max(200).optional().nullable(),
+  seminaireTheme: z.string().max(500).optional().nullable(),
+  seminaireOrganisateur: z.string().max(500).optional().nullable(),
+  seminaireIntervenants: z.string().max(5000).optional().nullable(),
+  seminaireSponsors: z.string().max(2000).optional().nullable(),
+  seminaireContact: z.string().max(500).optional().nullable(),
 };
 
 const createSchema = z.object(baseFields);
