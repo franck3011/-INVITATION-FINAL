@@ -88,7 +88,7 @@ function createSupabaseAdminClient() {
         // Enforce a strict 500ms timeout on all server-side Supabase requests
         // to guarantee instantaneous fallbacks and zero user waiting
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 500);
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
         return fetch(input, {
           ...init,
           signal: controller.signal,
