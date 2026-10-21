@@ -73,6 +73,20 @@ export function EnvelopeIntro({
   const dark = template.dark;
   const isSeminaire = template.category === "seminaire";
 
+  const displayTitle = themeOverrides?.envelopeTitleText?.trim() || title;
+  const envelopeFontClass =
+    themeOverrides?.envelopeTitleFont === "script"
+      ? "font-script"
+      : themeOverrides?.envelopeTitleFont === "serif"
+        ? "font-serif"
+        : themeOverrides?.envelopeTitleFont === "sans"
+          ? "font-sans"
+          : themeOverrides?.envelopeTitleFont === "display"
+            ? "font-display"
+            : template.titleFont === "script"
+              ? "font-script"
+              : "font-display";
+
   const handleOpen = () => {
     if (!previewMode) {
       confetti({
@@ -139,7 +153,7 @@ export function EnvelopeIntro({
               {themeOverrides?.ceremonyTitle || themeOverrides?.eventTitle || template.name}
             </p>
             <h2
-              className="font-display text-2xl md:text-3xl"
+              className={`${envelopeFontClass} text-2xl md:text-3xl`}
               style={{
                 color: env.seal,
                 fontWeight: themeOverrides?.fontWeightTitle || 700,
@@ -148,7 +162,7 @@ export function EnvelopeIntro({
                   : {}),
               }}
             >
-              {title}
+              {displayTitle}
             </h2>
           </motion.div>
 
@@ -250,14 +264,10 @@ export function EnvelopeIntro({
             {themeOverrides?.ceremonyTitle || themeOverrides?.eventTitle || "Invitation"}
           </p>
           <h2
-            className={`mt-2 text-center w-full ${
+            className={`mt-2 text-center w-full ${envelopeFontClass} ${
               previewMode
-                ? template.titleFont === "script"
-                  ? "font-script text-xl"
-                  : "font-display text-lg"
-                : template.titleFont === "script"
-                  ? "font-script text-3xl md:text-4xl"
-                  : "font-display text-2xl md:text-3xl"
+                ? "text-lg md:text-xl"
+                : "text-2xl md:text-4xl"
             }`}
             style={{
               color: env.seal,
@@ -270,7 +280,7 @@ export function EnvelopeIntro({
                 : {}),
             }}
           >
-            {title}
+            {displayTitle}
           </h2>
           <div className="mt-2 text-lg" aria-hidden>
             {template.emoji}

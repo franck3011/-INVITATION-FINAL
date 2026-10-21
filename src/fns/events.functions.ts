@@ -85,6 +85,8 @@ const baseFields = {
       envelopeSeal: z.string().max(200).optional().nullable(),
       envelopeSealText: z.string().max(50).optional().nullable(),
       envelopeCardBg: z.string().max(200).optional().nullable(),
+      envelopeTitleText: z.string().max(300).optional().nullable(),
+      envelopeTitleFont: z.string().max(50).optional().nullable(),
       // Textes personnalisables
       textInvitationPour: z.string().max(500).optional().nullable(),
       textCliquezSceau: z.string().max(500).optional().nullable(),

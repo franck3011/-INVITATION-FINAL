@@ -113,6 +113,8 @@ export interface ThemeOverrides {
   envelopeSeal?: string | null;
   envelopeSealText?: string | null;
   envelopeCardBg?: string | null;
+  envelopeTitleText?: string | null;
+  envelopeTitleFont?: "script" | "display" | "serif" | "sans" | null;
 
   // --- Textes personnalisables ---
   ceremonyTitle?: string | null;

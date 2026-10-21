@@ -340,6 +340,8 @@ function CreatePage() {
   const [fontSizeExtraSection, setFontSizeExtraSection] = useState<number | null>(null);
   const [fontSizeEnvelopeTitle, setFontSizeEnvelopeTitle] = useState<number | null>(null);
   const [fontSizeEnvelopeSeal, setFontSizeEnvelopeSeal] = useState<number | null>(null);
+  const [envelopeTitleText, setEnvelopeTitleText] = useState<string>("");
+  const [envelopeTitleFont, setEnvelopeTitleFont] = useState<"auto" | "script" | "display" | "serif" | "sans">("auto");
 
   // Textes personnalisables
   const [textInvitationPour, setTextInvitationPour] = useState<string>("");
@@ -397,6 +399,9 @@ function CreatePage() {
         if (d.fontWeightAll) setFontWeightAll(d.fontWeightAll);
         if (d.textRsvpTitre) setTextRsvpTitre(d.textRsvpTitre);
         if (d.textRsvpSousTitre) setTextRsvpSousTitre(d.textRsvpSousTitre);
+        if (d.envelopeTitleText) setEnvelopeTitleText(d.envelopeTitleText);
+        if (d.envelopeTitleFont) setEnvelopeTitleFont(d.envelopeTitleFont);
+        if (d.fontSizeEnvelopeTitle) setFontSizeEnvelopeTitle(d.fontSizeEnvelopeTitle);
       } catch {}
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -439,6 +444,9 @@ function CreatePage() {
           fontWeightAll,
           textRsvpTitre,
           textRsvpSousTitre,
+          envelopeTitleText,
+          envelopeTitleFont,
+          fontSizeEnvelopeTitle,
         }),
       );
     }, 2000);
@@ -530,6 +538,8 @@ function CreatePage() {
     envelopeSeal: envelopeSeal || null,
     envelopeSealText: envelopeSealText || null,
     envelopeCardBg: envelopeCardBg || null,
+    envelopeTitleText: envelopeTitleText || null,
+    envelopeTitleFont: envelopeTitleFont === "auto" ? null : envelopeTitleFont,
     // Textes personnalisables
     ceremonyTitle: ceremonyTitle || null,
     eventTitle: ceremonyTitle || null,
@@ -2386,12 +2396,81 @@ function CreatePage() {
             >
               <input
                 value={envelopeSealText}
-                onChange={(e) => setEnvelopeSealText(e.target.value)}
+                onChange={(e) => {
+                  setEnvelopeSealText(e.target.value);
+                  setShowEnvelopePreview(true);
+                  setPreviewEnvelopeOpening(false);
+                }}
                 placeholder="✦"
                 maxLength={20}
                 className={inputCls}
               />
             </Field>
+
+            {/* --- NOUVEAU BLOC : Noms sur l'enveloppe --- */}
+            <Section title="✉️ Noms sur l'enveloppe" defaultOpen={true}>
+              <p className="text-xs text-muted-foreground mb-3">
+                Fonctionne séparément de la carte. Réglez le texte affiché sur l'enveloppe, sa police et sa taille.
+              </p>
+
+              <Field
+                cfg={{
+                  label: "Texte affiché sur l'enveloppe",
+                  helper:
+                    "Si vous le laissez vide, ce sont les noms de la carte qui s'affichent automatiquement.",
+                }}
+              >
+                <input
+                  type="text"
+                  placeholder={title || template.name || "Ex: Awa & Koffi"}
+                  value={envelopeTitleText}
+                  onChange={(e) => {
+                    setEnvelopeTitleText(e.target.value);
+                    setShowEnvelopePreview(true);
+                    setPreviewEnvelopeOpening(false);
+                  }}
+                  className={inputCls}
+                />
+              </Field>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                <Field
+                  cfg={{
+                    label: "Police sur l'enveloppe",
+                    helper: "Ex: Calligraphie élégante pour un style manuscrit.",
+                  }}
+                >
+                  <select
+                    value={envelopeTitleFont}
+                    onChange={(e) => {
+                      setEnvelopeTitleFont(e.target.value as any);
+                      setShowEnvelopePreview(true);
+                      setPreviewEnvelopeOpening(false);
+                    }}
+                    className={inputCls}
+                  >
+                    {TITLE_FONT_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+
+                <FontSizeField
+                  label="Taille du texte"
+                  value={fontSizeEnvelopeTitle}
+                  onChange={(val) => {
+                    setFontSizeEnvelopeTitle(val);
+                    setShowEnvelopePreview(true);
+                    setPreviewEnvelopeOpening(false);
+                  }}
+                  min={14}
+                  max={60}
+                  defaultVal={28}
+                />
+              </div>
+            </Section>
           </Section>
 
           <Section title="🌍 Langue de l'invitation" defaultOpen={false}>
